@@ -16,14 +16,14 @@ interface ExamWithAttempt extends Exam {
   questionCount: number;
 }
 
-type Tab = 'available' | 'in-progress' | 'completed' | 'upcoming';
+type Tab = 'active' | 'upcoming' | 'done';
 
 export default function StudentDashboard() {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [exams, setExams] = useState<ExamWithAttempt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>('available');
+  const [activeTab, setActiveTab] = useState<Tab>('active');
 
   useEffect(() => {
     if (!authLoading) {
@@ -52,35 +52,30 @@ export default function StudentDashboard() {
     setLoading(false);
   };
 
-  const getFilteredExams = () => {
-    return exams.filter((exam) => {
-      const status = getStudentExamStatus(exam, exam.attempt);
-      if (activeTab === 'available') return status === 'available';
-      if (activeTab === 'in-progress') return status === 'in_progress';
-      if (activeTab === 'completed') return status === 'completed';
-      if (activeTab === 'upcoming') return status === 'upcoming' || status === 'expired';
-      return false;
-    });
+  const getExamTab = (exam: ExamWithAttempt): Tab => {
+    const status = getStudentExamStatus(exam, exam.attempt);
+    if (status === 'completed') return 'done';
+    if (status === 'upcoming' || status === 'expired') return 'upcoming';
+    return 'active'; // 'available' and 'in_progress'
   };
 
-  const tabConfig = {
-    available: { label: 'Open', count: exams.filter((e) => getStudentExamStatus(e, e.attempt) === 'available').length },
-    'in-progress': { label: 'Active', count: exams.filter((e) => getStudentExamStatus(e, e.attempt) === 'in_progress').length },
-    completed: { label: 'Done', count: exams.filter((e) => getStudentExamStatus(e, e.attempt) === 'completed').length },
-    upcoming: { label: 'Soon', count: exams.filter((e) => ['upcoming', 'expired'].includes(getStudentExamStatus(e, e.attempt))).length },
+  const getFilteredExams = () => exams.filter((exam) => getExamTab(exam) === activeTab);
+
+  const tabConfig: Record<Tab, { label: string; count: number }> = {
+    active:   { label: 'Active',   count: exams.filter((e) => getExamTab(e) === 'active').length },
+    upcoming: { label: 'Upcoming', count: exams.filter((e) => getExamTab(e) === 'upcoming').length },
+    done:     { label: 'Done',     count: exams.filter((e) => getExamTab(e) === 'done').length },
   };
 
   const filteredExams = getFilteredExams();
-  const completedExams = exams.filter((e) => e.attempt?.is_graded);
-  const avgScore = completedExams.length > 0
-    ? Math.round(completedExams.reduce((sum, e) => sum + ((e.attempt!.score || 0) / (e.attempt!.total_points || 1)) * 100, 0) / completedExams.length)
-    : 0;
 
   if (authLoading || loading) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
+      <DashboardLayout role="student">
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+          <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      </DashboardLayout>
     );
   }
 

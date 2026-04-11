@@ -171,13 +171,8 @@ export default function StudentExamPage() {
       <DashboardLayout role="student">
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center p-4">
         <div className="w-full max-w-lg">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-slate-500 mb-6">
-            <Link href="/student/dashboard"><ArrowLeft className="h-4 w-4" />Dashboard</Link>
-          </Button>
+        
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mx-auto mb-6">
-              <BookOpen className="h-8 w-8 text-primary" />
-            </div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">{exam.title}</h1>
             {exam.description && <p className="text-slate-500 mb-6 text-sm leading-relaxed">{exam.description}</p>}
             <div className="grid grid-cols-2 gap-3 mb-8 text-left">
@@ -252,39 +247,6 @@ export default function StudentExamPage() {
       <DashboardLayout role="student">
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-slate-500 -ml-2 mb-6">
-            <Link href="/student/dashboard"><ArrowLeft className="h-4 w-4" />Dashboard</Link>
-          </Button>
-
-          {/* Score card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center mb-8 shadow-sm">
-            <Trophy className="h-12 w-12 text-amber-400 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-slate-900 mb-1">{exam.title}</h1>
-            <p className="text-slate-500 mb-6">Exam completed</p>
-            <div className="flex items-center justify-center gap-8">
-              <div>
-                <p className="text-5xl font-bold text-slate-900">{attempt.score}</p>
-                <p className="text-sm text-slate-500">out of {attempt.total_points}</p>
-              </div>
-              <div className="h-16 w-px bg-slate-200" />
-              <div>
-                <p className={`text-5xl font-bold ${grade.color}`}>{pct}%</p>
-                <p className="text-sm text-slate-500">score</p>
-              </div>
-              <div className="h-16 w-px bg-slate-200" />
-              <div>
-                <p className={`text-5xl font-bold ${grade.color}`}>{grade.label}</p>
-                <p className="text-sm text-slate-500">grade</p>
-              </div>
-            </div>
-            <div className="mt-6 h-3 rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${pct >= 60 ? 'bg-emerald-500' : 'bg-red-400'}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-
           {/* Answers breakdown */}
           <h2 className="text-base font-semibold text-slate-900 mb-4">Answer Review</h2>
           <div className="space-y-4">
@@ -347,7 +309,6 @@ export default function StudentExamPage() {
     const question = questions[currentQ];
 
     return (
-      <DashboardLayout role="student">
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
         {/* Exam header bar */}
         <div className="sticky top-16 z-40 bg-white border-b border-slate-200 shadow-sm">
@@ -529,7 +490,6 @@ export default function StudentExamPage() {
           </div>
         )}
       </div>
-      </DashboardLayout>
     );
   }
 

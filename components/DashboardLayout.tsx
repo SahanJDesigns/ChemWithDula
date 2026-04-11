@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { BookOpen, LayoutGrid, ChartBar as BarChart3, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffect } from 'react';
 
 interface NavItem {
   label: string;
@@ -29,6 +30,19 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     router.push('/');
   };
 
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) setSidebarOpen(false);
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [setSidebarOpen]);
+
+  const handleNavClick = () => {
+    if (window.innerWidth < 768) setSidebarOpen(false);
+  };
+
   const navItems: NavItem[] =
     role === 'teacher'
       ? [
@@ -42,9 +56,9 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         ];
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] bg-muted/40">
+    <div className="flex h-screen overflow-hidden bg-muted/40">
 
-      {/* Backdrop — mobile only, shown when sidebar is open */}
+      {/* Backdrop — mobile only */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/40 md:hidden"
@@ -55,12 +69,11 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
       {/* Sidebar */}
       <aside
         className={`
-          flex flex-col overflow-hidden border-r border-border bg-card
-          transition-all duration-300 md:mt-0 mt-16
-          md:static md:z-auto md:translate-x-0
-          ${sidebarOpen
-            ? 'fixed inset-y-0 left-0 z-30 w-64 translate-x-0'
-            : 'fixed inset-y-0 left-0 z-30 w-64 -translate-x-full md:relative md:flex md:w-0 md:border-0'}
+          flex flex-col border-r border-border bg-card h-screen
+          transition-all duration-300
+          fixed inset-y-0 left-0 z-30 w-64
+          md:static md:z-auto md:translate-x-0 md:flex md:shrink-0
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-4">
@@ -71,6 +84,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={handleNavClick}
                 className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-primary/10 text-primary shadow-sm'
@@ -107,8 +121,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
       </aside>
 
       {/* Main content */}
-      <main className="flex min-w-0 flex-1 flex-col">
-        <div className="flex-1 overflow-y-auto">{children}</div>
+      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+        {children}
       </main>
 
     </div>

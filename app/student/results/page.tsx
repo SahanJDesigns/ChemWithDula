@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AttemptAnswerBreakdown, AnswerWithQuestion } from '@/components/AttemptAnswerBreakdown';
 import { BarChart3, Clock, Loader2, Lock } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 
@@ -39,7 +38,6 @@ export default function StudentResultsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailAttempt, setDetailAttempt] = useState<AttemptRow | null>(null);
   const [detailQuestions, setDetailQuestions] = useState<Question[]>([]);
-  const [detailAnswers, setDetailAnswers] = useState<AnswerWithQuestion[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -63,20 +61,12 @@ export default function StudentResultsPage() {
     }
   }, [user, profile, authLoading, fetchData, router]);
 
-  const isExamOngoing = (attempt: AttemptRow) => {
-    const endTime = attempt.exams?.end_time;
-    if (!endTime) return false;
-    return new Date(endTime) > new Date();
-  };
 
   const openDetails = useCallback(async (attempt: AttemptRow) => {
-    if (isExamOngoing(attempt)) return;
-
     setDetailAttempt(attempt);
     setDetailOpen(true);
     setDetailLoading(true);
     setDetailQuestions([]);
-    setDetailAnswers([]);
 
     const [qRes, aRes] = await Promise.all([
       supabase.from('questions').select('*').eq('exam_id', attempt.exam_id).order('order_index'),
@@ -84,7 +74,6 @@ export default function StudentResultsPage() {
     ]);
 
     setDetailQuestions(qRes.data || []);
-    setDetailAnswers((aRes.data || []) as AnswerWithQuestion[]);
     setDetailLoading(false);
   }, []);
 
@@ -93,7 +82,6 @@ export default function StudentResultsPage() {
     if (!open) {
       setDetailAttempt(null);
       setDetailQuestions([]);
-      setDetailAnswers([]);
     }
   };
 
@@ -139,9 +127,8 @@ export default function StudentResultsPage() {
           ) : (
             <>
               {/* ── Mobile cards (hidden on md+) ── */}
-              <div className="flex flex-col divide-y divide-border rounded-lg p-1 d-border border-border bg-card md:hidden">
+              <div className="flex flex-col divide-y divide-border rounded-lg p-1 border border-border bg-card md:hidden">
                 {attempts.map((attempt) => {
-                  const ongoing = isExamOngoing(attempt);
                   const pct = attempt.total_points
                     ? Math.round(((attempt.score || 0) / attempt.total_points) * 100)
                     : 0;
@@ -166,14 +153,12 @@ export default function StudentResultsPage() {
                         </span>
                         <span
                           className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
-                            ongoing
-                              ? 'bg-violet-50 text-violet-700'
-                              : attempt.is_graded
+                            attempt.is_graded
                               ? 'bg-emerald-50 text-emerald-700'
                               : 'bg-amber-50 text-amber-700'
                           }`}
                         >
-                          {ongoing ? 'Result pending' : attempt.is_graded ? 'Graded' : 'Active'}
+                          {attempt.is_graded ? 'Graded' : 'Active'}
                         </span>
                       </div>
 
@@ -190,9 +175,7 @@ export default function StudentResultsPage() {
                           <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                             Score
                           </span>
-                          {ongoing ? (
-                            <span className="text-sm text-muted-foreground">—</span>
-                          ) : attempt.is_graded ? (
+                          {attempt.is_graded ? (
                             <span className="text-sm font-semibold text-foreground">
                               {attempt.score}/{attempt.total_points}{' '}
                               <span className="font-normal text-muted-foreground">({pct}%)</span>
@@ -204,37 +187,20 @@ export default function StudentResultsPage() {
                             </span>
                           )}
                         </div>
-
-                        {!ongoing && grade && (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              Grade
-                            </span>
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full w-fit ${grade.color}`}>
-                              {grade.label}
-                            </span>
-                          </div>
-                        )}
                       </div>
 
                       {/* Action */}
-                      {!ongoing && attempt.is_graded && (
+                      {attempt.is_graded && (
                         <div className="pt-1">
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-8 px-0 text-primary hover:bg-transparent hover:underline"
-                            onClick={() => openDetails(attempt)}
+                            onClick={() => router.push(`/student/exams/${attempt.id}`)}
                           >
                             View details →
                           </Button>
                         </div>
-                      )}
-                      {ongoing && (
-                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                          <Lock className="h-3 w-3" />
-                          Locked
-                        </span>
                       )}
                     </div>
                   );
@@ -256,7 +222,6 @@ export default function StudentResultsPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {attempts.map((attempt) => {
-                      const ongoing = isExamOngoing(attempt);
                       const pct = attempt.total_points
                         ? Math.round(((attempt.score || 0) / attempt.total_points) * 100)
                         : 0;
@@ -277,9 +242,7 @@ export default function StudentResultsPage() {
                           </td>
                           <td className="px-4 py-3 text-sm text-foreground/90">{submittedAt}</td>
                           <td className="px-4 py-3 text-center">
-                            {ongoing ? (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            ) : attempt.is_graded ? (
+                            {attempt.is_graded ? (
                               <span className="text-sm font-semibold text-foreground">
                                 {attempt.score}/{attempt.total_points}{' '}
                                 <span className="font-normal text-muted-foreground">({pct}%)</span>
@@ -292,7 +255,7 @@ export default function StudentResultsPage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            {!ongoing && grade ? (
+                            {grade ? (
                               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${grade.color}`}>
                                 {grade.label}
                               </span>
@@ -303,32 +266,24 @@ export default function StudentResultsPage() {
                           <td className="px-4 py-3 text-center">
                             <span
                               className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                ongoing
-                                  ? 'bg-violet-50 text-violet-700'
-                                  : attempt.is_graded
+                                  attempt.is_graded
                                   ? 'bg-emerald-50 text-emerald-700'
                                   : 'bg-amber-50 text-amber-700'
                               }`}
                             >
-                              {ongoing ? 'Result pending' : attempt.is_graded ? 'Graded' : 'Active'}
+                              {attempt.is_graded ? 'Graded' : 'Active'}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {!ongoing && attempt.is_graded && (
+                            {attempt.is_graded && (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 text-primary hover:bg-primary/10"
-                                onClick={() => openDetails(attempt)}
+                                onClick={() => router.push(`/student/exams/${attempt.exam_id}`)}
                               >
                                 View details
                               </Button>
-                            )}
-                            {ongoing && (
-                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground pr-2">
-                                <Lock className="h-3 w-3" />
-                                Locked
-                              </span>
                             )}
                           </td>
                         </tr>
@@ -341,56 +296,6 @@ export default function StudentResultsPage() {
           )}
         </div>
       </div>
-
-      {/* Detail dialog */}
-      <Dialog open={detailOpen} onOpenChange={onDetailOpenChange}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden sm:max-w-3xl">
-          <DialogHeader className="shrink-0 border-b border-border px-4 pb-4 pt-5 sm:px-6 sm:pt-6 text-left">
-            <DialogTitle className="pr-8 text-base sm:text-lg">
-              {detailAttempt?.exams?.title ?? 'Exam'}
-            </DialogTitle>
-            <div className="flex flex-wrap items-center gap-2 pt-2 text-foreground/90" aria-live="polite">
-              {detailLoading ? (
-                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading attempt…
-                </span>
-              ) : detailAttempt?.is_graded ? (
-                <>
-                  <span className="text-sm font-semibold">
-                    Score: {detailAttempt.score}/{detailAttempt.total_points}
-                    {detailPct !== null && (
-                      <span className="text-slate-500 font-normal"> ({detailPct}%)</span>
-                    )}
-                  </span>
-                  {detailGrade && (
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${detailGrade.color}`}>
-                      {detailGrade.label}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-sm text-amber-800">
-                  <Clock className="h-4 w-4" />
-                  In progress — answers may be incomplete.
-                </span>
-              )}
-            </div>
-          </DialogHeader>
-
-          <div className="px-4 py-4 sm:px-6 overflow-y-auto flex-1 min-h-0">
-            {detailLoading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : detailQuestions.length === 0 ? (
-              <p className="py-4 text-sm text-muted-foreground">No questions.</p>
-            ) : (
-              <AttemptAnswerBreakdown questions={detailQuestions} answers={detailAnswers} />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }

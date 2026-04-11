@@ -109,9 +109,9 @@ export default function StudentMyExamsPage() {
   if (authLoading || loading) {
     return (
       <DashboardLayout role="student">
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
       </DashboardLayout>
     );
   }
