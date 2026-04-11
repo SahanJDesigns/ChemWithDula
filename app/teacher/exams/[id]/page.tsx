@@ -7,14 +7,13 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam, Question } from '@/lib/types';
+import { MCQ_OPTION_KEYS, MCQ_OPTION_LABELS, MCQ_OPTION_VALUES, type McqOptionLetter } from '@/lib/mcq-options';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Plus, Trash2, Image as ImageIcon, X, CircleCheck as CheckCircle2, Eye, EyeOff, ChartBar as BarChart3, GripVertical, Upload } from 'lucide-react';
-
-const OPTION_LABELS = ['A', 'B', 'C', 'D'] as const;
-const OPTION_KEYS = ['option_a', 'option_b', 'option_c', 'option_d'] as const;
+import { ArrowLeft, Plus, Trash2, Image as ImageIcon, X, CircleCheck as CheckCircle2, Eye, EyeOff, ChartBar as BarChart3, GripVertical, Upload, BookOpen} from 'lucide-react';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface QuestionFormData {
   question_text: string;
@@ -23,7 +22,8 @@ interface QuestionFormData {
   option_b: string;
   option_c: string;
   option_d: string;
-  correct_option: 'a' | 'b' | 'c' | 'd';
+  option_e: string;
+  correct_option: McqOptionLetter;
   points: number;
 }
 
@@ -34,6 +34,7 @@ const emptyQuestion = (): QuestionFormData => ({
   option_b: '',
   option_c: '',
   option_d: '',
+  option_e: '',
   correct_option: 'a',
   points: 1,
 });
@@ -70,7 +71,7 @@ export default function ManageExamPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user) { router.push('/auth'); return; }
+      if (!user) { router.push('/'); return; }
       if (profile && profile.role !== 'teacher') { router.push('/student/dashboard'); return; }
       if (profile) fetchData();
     }
@@ -97,8 +98,14 @@ export default function ManageExamPage() {
       setFormError('Question text or image is required.');
       return false;
     }
-    if (!formData.option_a.trim() || !formData.option_b.trim() || !formData.option_c.trim() || !formData.option_d.trim()) {
-      setFormError('All four options are required.');
+    if (
+      !formData.option_a.trim() ||
+      !formData.option_b.trim() ||
+      !formData.option_c.trim() ||
+      !formData.option_d.trim() ||
+      !formData.option_e.trim()
+    ) {
+      setFormError('All five options are required.');
       return false;
     }
     return true;
@@ -117,6 +124,7 @@ export default function ManageExamPage() {
           option_b: formData.option_b.trim(),
           option_c: formData.option_c.trim(),
           option_d: formData.option_d.trim(),
+          option_e: formData.option_e.trim(),
           correct_option: formData.correct_option,
           points: formData.points,
         }).eq('id', editingId);
@@ -129,6 +137,7 @@ export default function ManageExamPage() {
           option_b: formData.option_b.trim(),
           option_c: formData.option_c.trim(),
           option_d: formData.option_d.trim(),
+          option_e: formData.option_e.trim(),
           correct_option: formData.correct_option,
           order_index: questions.length,
           points: formData.points,
@@ -153,6 +162,7 @@ export default function ManageExamPage() {
       option_b: q.option_b,
       option_c: q.option_c,
       option_d: q.option_d,
+      option_e: q.option_e ?? '',
       correct_option: q.correct_option,
       points: q.points,
     });
@@ -184,7 +194,7 @@ export default function ManageExamPage() {
   if (authLoading || loading) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
     );
   }
@@ -194,13 +204,14 @@ export default function ManageExamPage() {
   const totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
 
   return (
+    <DashboardLayout
+      role="teacher"
+    >
+
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
         {/* Header */}
         <div className="mb-6">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-slate-500 -ml-2 mb-4">
-            <Link href="/teacher/dashboard"><ArrowLeft className="h-4 w-4" />Dashboard</Link>
-          </Button>
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5 mb-1">
@@ -222,11 +233,6 @@ export default function ManageExamPage() {
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/teacher/exams/${exam.id}/results`}>
-                  <BarChart3 className="h-4 w-4 mr-1.5" />Results
-                </Link>
-              </Button>
               <Button
                 size="sm"
                 onClick={togglePublish}
@@ -240,7 +246,7 @@ export default function ManageExamPage() {
 
         {/* Add/Edit Question Form */}
         {showAddForm ? (
-          <div className="rounded-2xl border border-blue-200 bg-white p-6 shadow-sm mb-6">
+          <div className="rounded-2xl border border-primary/20 bg-card p-6 shadow-sm mb-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-slate-900">
                 {editingId ? 'Edit Question' : 'Add New Question'}
@@ -282,9 +288,9 @@ export default function ManageExamPage() {
                     </button>
                   </div>
                 ) : (
-                  <label className="mt-1.5 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 py-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                  <label className="mt-1.5 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 py-6 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors">
                     {imageUploading ? (
-                      <div className="h-5 w-5 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+                      <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                     ) : (
                       <>
                         <Upload className="h-6 w-6 text-slate-400" />
@@ -307,28 +313,35 @@ export default function ManageExamPage() {
               <div>
                 <Label className="mb-2 block">Answer Options <span className="text-red-500">*</span></Label>
                 <div className="space-y-2.5">
-                  {OPTION_KEYS.map((key, i) => (
-                    <div key={key} className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setFormData((p) => ({ ...p, correct_option: ['a', 'b', 'c', 'd'][i] as 'a' | 'b' | 'c' | 'd' }))}
-                        className={`h-8 w-8 shrink-0 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${
-                          formData.correct_option === ['a', 'b', 'c', 'd'][i]
-                            ? 'border-emerald-500 bg-emerald-500 text-white'
-                            : 'border-slate-300 text-slate-400 hover:border-slate-400'
-                        }`}
-                        title="Mark as correct answer"
-                      >
-                        {formData.correct_option === ['a', 'b', 'c', 'd'][i] ? <CheckCircle2 className="h-4 w-4" /> : OPTION_LABELS[i]}
-                      </button>
-                      <Input
-                        value={formData[key]}
-                        onChange={(e) => setFormData((p) => ({ ...p, [key]: e.target.value }))}
-                        placeholder={`Option ${OPTION_LABELS[i]}`}
-                        className="flex-1"
-                      />
-                    </div>
-                  ))}
+                  {MCQ_OPTION_KEYS.map((key, i) => {
+                    const letter = MCQ_OPTION_VALUES[i];
+                    return (
+                      <div key={key} className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setFormData((p) => ({ ...p, correct_option: letter }))}
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-all ${
+                            formData.correct_option === letter
+                              ? 'border-emerald-500 bg-emerald-500 text-white'
+                              : 'border-slate-300 text-slate-400 hover:border-slate-400'
+                          }`}
+                          title="Mark as correct answer"
+                        >
+                          {formData.correct_option === letter ? (
+                            <CheckCircle2 className="h-4 w-4" />
+                          ) : (
+                            MCQ_OPTION_LABELS[letter]
+                          )}
+                        </button>
+                        <Input
+                          value={formData[key]}
+                          onChange={(e) => setFormData((p) => ({ ...p, [key]: e.target.value }))}
+                          placeholder={`Option ${MCQ_OPTION_LABELS[letter]}`}
+                          className="flex-1"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
                 <p className="text-xs text-slate-400 mt-2">Click the circle to mark the correct answer (shown in green).</p>
               </div>
@@ -350,7 +363,7 @@ export default function ManageExamPage() {
               )}
 
               <div className="flex gap-3 pt-2">
-                <Button onClick={handleSaveQuestion} disabled={saving || imageUploading} className="bg-blue-600 hover:bg-blue-700">
+                <Button onClick={handleSaveQuestion} disabled={saving || imageUploading}>
                   {saving ? <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : editingId ? 'Update Question' : 'Add Question'}
                 </Button>
                 <Button variant="outline" onClick={cancelForm}>Cancel</Button>
@@ -360,7 +373,7 @@ export default function ManageExamPage() {
         ) : (
           <Button
             onClick={() => { setShowAddForm(true); setFormData(emptyQuestion()); setEditingId(null); }}
-            className="mb-6 bg-blue-600 hover:bg-blue-700 gap-2"
+            className="mb-6 gap-2"
           >
             <Plus className="h-4 w-4" /> Add Question
           </Button>
@@ -383,7 +396,7 @@ export default function ManageExamPage() {
                   <div className="flex items-start gap-3">
                     <div className="flex items-center gap-2 shrink-0 mt-0.5">
                       <GripVertical className="h-4 w-4 text-slate-300" />
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                         {idx + 1}
                       </span>
                     </div>
@@ -400,23 +413,25 @@ export default function ManageExamPage() {
                       {q.question_text && (
                         <p className="text-sm font-medium text-slate-800 mb-2">{q.question_text}</p>
                       )}
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {OPTION_KEYS.map((key, i) => (
-                          <div
-                            key={key}
-                            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${
-                              q.correct_option === ['a', 'b', 'c', 'd'][i]
-                                ? 'bg-emerald-50 text-emerald-700 font-medium'
-                                : 'bg-slate-50 text-slate-600'
-                            }`}
-                          >
-                            <span className={`font-bold ${q.correct_option === ['a', 'b', 'c', 'd'][i] ? 'text-emerald-600' : 'text-slate-400'}`}>
-                              {OPTION_LABELS[i]}.
-                            </span>
-                            {q[key]}
-                            {q.correct_option === ['a', 'b', 'c', 'd'][i] && <CheckCircle2 className="h-3 w-3 ml-auto shrink-0" />}
-                          </div>
-                        ))}
+                      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                        {MCQ_OPTION_KEYS.map((key, i) => {
+                          const letter = MCQ_OPTION_VALUES[i];
+                          const isCorrect = q.correct_option === letter;
+                          return (
+                            <div
+                              key={key}
+                              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${
+                                isCorrect ? 'bg-emerald-50 font-medium text-emerald-700' : 'bg-slate-50 text-slate-600'
+                              }`}
+                            >
+                              <span className={`font-bold ${isCorrect ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {MCQ_OPTION_LABELS[letter]}.
+                              </span>
+                              {q[key]}
+                              {isCorrect && <CheckCircle2 className="ml-auto h-3 w-3 shrink-0" />}
+                            </div>
+                          );
+                        })}
                       </div>
                       <p className="text-xs text-slate-400 mt-2">{q.points} point{q.points !== 1 ? 's' : ''}</p>
                     </div>
@@ -448,5 +463,6 @@ export default function ManageExamPage() {
         )}
       </div>
     </div>
+    </DashboardLayout>
   );
 }

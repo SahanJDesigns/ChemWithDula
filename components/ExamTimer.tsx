@@ -54,7 +54,7 @@ export default function ExamTimer({ startedAt, durationMinutes, onTimeUp }: Exam
         ? 'bg-red-50 border-red-200 text-red-600 animate-pulse'
         : isWarning
         ? 'bg-amber-50 border-amber-200 text-amber-700'
-        : 'bg-blue-50 border-blue-200 text-blue-700'
+        : 'bg-primary/10 border-primary/25 text-primary'
     }`}>
       {isCritical || isExpired ? (
         <AlertTriangle className="h-5 w-5 shrink-0" />

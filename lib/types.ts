@@ -28,7 +28,8 @@ export interface Question {
   option_b: string;
   option_c: string;
   option_d: string;
-  correct_option: 'a' | 'b' | 'c' | 'd';
+  option_e: string;
+  correct_option: 'a' | 'b' | 'c' | 'd' | 'e';
   order_index: number;
   points: number;
   created_at: string;
@@ -52,7 +53,7 @@ export interface StudentAnswer {
   id: string;
   attempt_id: string;
   question_id: string;
-  selected_option: 'a' | 'b' | 'c' | 'd' | null;
+  selected_option: 'a' | 'b' | 'c' | 'd' | 'e' | null;
   is_correct: boolean | null;
   created_at: string;
 }

@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { localTimeToUTC } from '@/lib/utils';
+import { ArrowLeft, BookOpen, Plus } from 'lucide-react';
 
 export default function NewExamPage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -25,7 +27,7 @@ export default function NewExamPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user) { router.push('/auth'); return; }
+      if (!user) { router.push('/'); return; }
       if (profile && profile.role !== 'teacher') { router.push('/student/dashboard'); }
     }
   }, [user, profile, authLoading, router]);
@@ -37,6 +39,10 @@ export default function NewExamPage() {
     setError('');
     setLoading(true);
     try {
+      // Convert times from Asia/Colombo (datetime-local) to UTC
+      const utcStartTime = startTime ? localTimeToUTC(startTime) : null;
+      const utcEndTime = endTime ? localTimeToUTC(endTime) : null;
+
       const { data, error: insertError } = await supabase
         .from('exams')
         .insert({
@@ -44,8 +50,8 @@ export default function NewExamPage() {
           description: description.trim(),
           teacher_id: user!.id,
           duration_minutes: duration,
-          start_time: startTime || null,
-          end_time: endTime || null,
+          start_time: utcStartTime,
+          end_time: utcEndTime,
           is_published: false,
         })
         .select()
@@ -62,31 +68,16 @@ export default function NewExamPage() {
   if (authLoading) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
     );
   }
-
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-      <div className="mx-auto max-w-2xl px-4 sm:px-6 py-8">
-        <div className="mb-6">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-slate-500 -ml-2 mb-4">
-            <Link href="/teacher/dashboard"><ArrowLeft className="h-4 w-4" />Back to Dashboard</Link>
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
-              <BookOpen className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">Create New Exam</h1>
-              <p className="text-sm text-slate-500">Fill in the details to get started</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-5">
+    <DashboardLayout
+      role="teacher"
+    >
+          <div className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <Label htmlFor="title">Exam Title <span className="text-red-500">*</span></Label>
               <Input
@@ -128,7 +119,7 @@ export default function NewExamPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="startTime">Available From <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
+                <Label htmlFor="startTime">Available From <span className="text-slate-400 font-normal text-xs">(Asia/Colombo)</span></Label>
                 <Input
                   id="startTime"
                   type="datetime-local"
@@ -138,7 +129,7 @@ export default function NewExamPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="endTime">Available Until <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
+                <Label htmlFor="endTime">Available Until <span className="text-slate-400 font-normal text-xs">(Asia/Colombo)</span></Label>
                 <Input
                   id="endTime"
                   type="datetime-local"
@@ -154,19 +145,21 @@ export default function NewExamPage() {
               <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
             )}
 
-            <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 flex-1">
+            <div className="flex gap-3 pt-2 ">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-40 ml-auto flex items-center justify-center gap-2"
+              >
                 {loading ? (
-                  <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                ) : 'Create Exam & Add Questions'}
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                ) : (
+                  'Create Exam'
+                )}
               </Button>
-              <Button type="button" variant="outline" asChild>
-                <Link href="/teacher/dashboard">Cancel</Link>
-              </Button>
-            </div>
+          </div>
           </form>
         </div>
-      </div>
-    </div>
+    </DashboardLayout>
   );
 }

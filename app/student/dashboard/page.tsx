@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam, ExamAttempt } from '@/lib/types';
+import { getStudentExamStatus } from '@/lib/student-exam-status';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Clock, BookOpen, CircleCheck as CheckCircle2, CirclePlay as PlayCircle, Trophy, Calendar, FileText, LayoutGrid } from 'lucide-react';
+import { Clock, CircleCheck as CheckCircle2, CirclePlay as PlayCircle, Trophy, FileText, LayoutGrid } from 'lucide-react';
 
 interface ExamWithAttempt extends Exam {
   attempt?: ExamAttempt;
@@ -26,7 +27,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user) { router.push('/auth'); return; }
+      if (!user) { router.push('/'); return; }
       if (profile && profile.role !== 'student') { router.push('/teacher/dashboard'); return; }
       if (profile) fetchExams();
     }
@@ -51,18 +52,9 @@ export default function StudentDashboard() {
     setLoading(false);
   };
 
-  const getExamStatus = (exam: ExamWithAttempt) => {
-    const now = new Date();
-    if (exam.attempt?.is_graded) return 'completed';
-    if (exam.attempt && !exam.attempt.submitted_at) return 'in_progress';
-    if (exam.end_time && new Date(exam.end_time) < now) return 'expired';
-    if (exam.start_time && new Date(exam.start_time) > now) return 'upcoming';
-    return 'available';
-  };
-
   const getFilteredExams = () => {
     return exams.filter((exam) => {
-      const status = getExamStatus(exam);
+      const status = getStudentExamStatus(exam, exam.attempt);
       if (activeTab === 'available') return status === 'available';
       if (activeTab === 'in-progress') return status === 'in_progress';
       if (activeTab === 'completed') return status === 'completed';
@@ -72,10 +64,10 @@ export default function StudentDashboard() {
   };
 
   const tabConfig = {
-    available: { label: 'Available Now', count: exams.filter((e) => getExamStatus(e) === 'available').length },
-    'in-progress': { label: 'In Progress', count: exams.filter((e) => getExamStatus(e) === 'in_progress').length },
-    completed: { label: 'Completed', count: exams.filter((e) => getExamStatus(e) === 'completed').length },
-    upcoming: { label: 'Upcoming/Expired', count: exams.filter((e) => ['upcoming', 'expired'].includes(getExamStatus(e))).length },
+    available: { label: 'Open', count: exams.filter((e) => getStudentExamStatus(e, e.attempt) === 'available').length },
+    'in-progress': { label: 'Active', count: exams.filter((e) => getStudentExamStatus(e, e.attempt) === 'in_progress').length },
+    completed: { label: 'Done', count: exams.filter((e) => getStudentExamStatus(e, e.attempt) === 'completed').length },
+    upcoming: { label: 'Soon', count: exams.filter((e) => ['upcoming', 'expired'].includes(getStudentExamStatus(e, e.attempt))).length },
   };
 
   const filteredExams = getFilteredExams();
@@ -87,54 +79,24 @@ export default function StudentDashboard() {
   if (authLoading || loading) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
     );
   }
 
-  const navItems = [
-    { label: 'Available', href: '/student/dashboard', icon: <PlayCircle className="h-4 w-4" />, badge: tabConfig.available.count },
-    { label: 'In Progress', href: '#', icon: <Clock className="h-4 w-4" />, badge: tabConfig['in-progress'].count },
-    { label: 'Completed', href: '#', icon: <CheckCircle2 className="h-4 w-4" />, badge: tabConfig.completed.count },
-    { label: 'Upcoming', href: '#', icon: <Calendar className="h-4 w-4" />, badge: tabConfig.upcoming.count },
-  ];
-
   return (
-    <DashboardLayout
-      role="student"
-      title="Exam Portal"
-      subtitle={`Welcome back, ${profile?.full_name}`}
-      navItems={navItems}
-    >
+    <DashboardLayout role="student">
       <div className="px-6 sm:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Available', value: tabConfig.available.count, icon: PlayCircle, color: 'text-teal-600 bg-teal-50' },
-            { label: 'Completed', value: completedExams.length, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50' },
-            { label: 'Average Score', value: completedExams.length > 0 ? `${avgScore}%` : 'N/A', icon: Trophy, color: 'text-amber-600 bg-amber-50' },
-            { label: 'In Progress', value: tabConfig['in-progress'].count, icon: Clock, color: 'text-sky-600 bg-sky-50' },
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${stat.color} mb-3`}>
-                <stat.icon className="h-5 w-5" />
-              </div>
-              <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
-              <p className="text-sm text-slate-500">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-
         {/* Tabs */}
-        <div className="mb-6 border-b border-slate-200 flex gap-1">
+        <div className="mb-6 flex gap-1 border-b border-border">
           {(Object.keys(tabConfig) as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-3 border-b-2 font-medium text-sm transition-all ${
                 activeTab === tab
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               {tabConfig[tab].label}
@@ -145,34 +107,34 @@ export default function StudentDashboard() {
 
         {/* Exams list */}
         {filteredExams.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-white p-16 text-center">
-            <LayoutGrid className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-700 mb-2">No exams in this category</h3>
-            <p className="text-slate-500">Check back later for more exams.</p>
+          <div className="rounded-2xl border-2 border-dashed border-border bg-card p-16 text-center">
+            <LayoutGrid className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
+            <h3 className="mb-2 text-lg font-semibold text-foreground">Nothing here</h3>
+            <p className="text-sm text-muted-foreground">Try another tab.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredExams.map((exam) => {
-              const status = getExamStatus(exam);
+              const status = getStudentExamStatus(exam, exam.attempt);
               const canStart = status === 'available';
               const canContinue = status === 'in_progress';
               const isCompleted = status === 'completed';
 
               const statusColors = {
-                completed: { badge: 'bg-emerald-50 text-emerald-700', button: 'bg-emerald-600 hover:bg-emerald-700' },
-                in_progress: { badge: 'bg-blue-50 text-blue-700', button: 'bg-blue-600 hover:bg-blue-700' },
-                expired: { badge: 'bg-slate-100 text-slate-500', button: '' },
-                upcoming: { badge: 'bg-amber-50 text-amber-700', button: '' },
-                available: { badge: 'bg-teal-50 text-teal-700', button: 'bg-teal-600 hover:bg-teal-700' },
+                completed: { badge: 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200', button: 'bg-emerald-600 hover:bg-emerald-600/90' },
+                in_progress: { badge: 'bg-primary/10 text-primary', button: 'bg-primary hover:bg-primary/90' },
+                expired: { badge: 'bg-muted text-muted-foreground', button: '' },
+                upcoming: { badge: 'bg-amber-500/10 text-amber-900 dark:text-amber-200', button: '' },
+                available: { badge: 'bg-primary/10 text-primary', button: 'bg-primary hover:bg-primary/90' },
               };
 
               const color = statusColors[status];
 
               return (
-                <div key={exam.id} className="rounded-xl border border-slate-200 bg-white p-5 hover:border-slate-300 transition-all hover:shadow-sm">
+                <div key={exam.id} className="rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-muted-foreground/20 hover:shadow-md">
                   <div className="mb-4">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="font-semibold text-slate-900 line-clamp-1">{exam.title}</h3>
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <h3 className="line-clamp-1 font-semibold text-foreground">{exam.title}</h3>
                       <span className={`shrink-0 text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap ${color.badge}`}>
                         {status === 'completed' && 'Completed'}
                         {status === 'in_progress' && 'In Progress'}
@@ -181,10 +143,10 @@ export default function StudentDashboard() {
                         {status === 'expired' && 'Expired'}
                       </span>
                     </div>
-                    {exam.description && <p className="text-xs text-slate-500 line-clamp-2">{exam.description}</p>}
+                    {exam.description && <p className="line-clamp-2 text-xs text-muted-foreground">{exam.description}</p>}
                   </div>
 
-                  <div className="space-y-2 mb-4 text-xs text-slate-600">
+                  <div className="mb-4 space-y-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2"><FileText className="h-3.5 w-3.5" />{exam.questionCount} questions</div>
                     <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5" />{exam.duration_minutes} min</div>
                   </div>
@@ -192,12 +154,12 @@ export default function StudentDashboard() {
                   {isCompleted && exam.attempt && (
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-medium text-slate-600">Score</span>
+                        <span className="text-xs font-medium text-muted-foreground">Score</span>
                         <span className="text-sm font-bold text-emerald-600">
                           {exam.attempt.score}/{exam.attempt.total_points}
                         </span>
                       </div>
-                      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full bg-emerald-500 rounded-full"
                           style={{ width: `${Math.round(((exam.attempt.score || 0) / (exam.attempt.total_points || 1)) * 100)}%` }}
@@ -217,7 +179,7 @@ export default function StudentDashboard() {
                       </Button>
                     )}
                     {(status === 'upcoming' || status === 'expired') && (
-                      <div className="flex-1 h-9 flex items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400 font-medium">
+                      <div className="flex h-9 flex-1 items-center justify-center rounded-lg bg-muted text-xs font-medium text-muted-foreground">
                         {status === 'upcoming' ? 'Not yet open' : 'Closed'}
                       </div>
                     )}

@@ -11,7 +11,7 @@ export default function DashboardRedirect() {
   useEffect(() => {
     if (!loading) {
       if (!profile) {
-        router.push('/auth');
+        router.push('/');
       } else if (profile.role === 'teacher') {
         router.push('/teacher/dashboard');
       } else {
@@ -22,7 +22,7 @@ export default function DashboardRedirect() {
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-      <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+      <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
     </div>
   );
 }

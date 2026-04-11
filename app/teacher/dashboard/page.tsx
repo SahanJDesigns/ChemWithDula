@@ -19,7 +19,7 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user) { router.push('/auth'); return; }
+      if (!user) { router.push('/'); return; }
       if (profile && profile.role !== 'teacher') { router.push('/student/dashboard'); return; }
       if (profile) fetchExams();
     }
@@ -63,7 +63,7 @@ export default function TeacherDashboard() {
   if (authLoading || loading) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
     );
   }
@@ -71,49 +71,22 @@ export default function TeacherDashboard() {
   const published = exams.filter((e) => e.is_published).length;
   const totalStudents = Object.values(attemptCounts).reduce((a, b) => a + b, 0);
 
-  const navItems = [
-    { label: 'All Exams', href: '/teacher/dashboard', icon: <BookOpen className="h-4 w-4" />, badge: exams.length },
-    { label: 'Create Exam', href: '/teacher/exams/new', icon: <Plus className="h-4 w-4" /> },
-  ];
 
   return (
-    <DashboardLayout
-      role="teacher"
-      title="Exam Dashboard"
-      subtitle={`Welcome back, ${profile?.full_name}`}
-      navItems={navItems}
-    >
-      <div className="px-6 sm:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Total Exams', value: exams.length, icon: BookOpen, color: 'text-blue-600 bg-blue-50' },
-            { label: 'Published', value: published, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50' },
-            { label: 'Draft', value: exams.length - published, icon: FileText, color: 'text-amber-600 bg-amber-50' },
-            { label: 'Student Attempts', value: totalStudents, icon: Users, color: 'text-sky-600 bg-sky-50' },
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${stat.color} mb-3`}>
-                <stat.icon className="h-5 w-5" />
-              </div>
-              <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
-              <p className="text-sm text-slate-500">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-
+    <DashboardLayout role="teacher">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Exams list */}
         {exams.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-white p-16 text-center">
+          <div className="border-slate-300 bg-white p-16 text-center">
             <BookOpen className="h-12 w-12 text-slate-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-slate-700 mb-2">No exams yet</h3>
             <p className="text-slate-500 mb-6">Create your first exam to get started.</p>
-            <Button asChild className="bg-blue-600 hover:bg-blue-700">
+            <Button asChild >
               <Link href="/teacher/exams/new"><Plus className="h-4 w-4 mr-2" />Create Exam</Link>
             </Button>
           </div>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="border border-slate-200 bg-white  overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
@@ -153,7 +126,7 @@ export default function TeacherDashboard() {
                             <Link href={`/teacher/exams/${exam.id}`}>Manage</Link>
                           </Button>
                           {attempts > 0 && (
-                            <Button variant="ghost" size="sm" asChild className="h-8 px-2.5 text-blue-600 hover:text-blue-700">
+                            <Button variant="ghost" size="sm" asChild className="h-8 px-2.5 text-primary hover:bg-primary/10">
                               <Link href={`/teacher/exams/${exam.id}/results`}>
                                 <BarChart3 className="h-3.5 w-3.5" />
                               </Link>

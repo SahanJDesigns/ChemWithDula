@@ -7,13 +7,11 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam, Question, ExamAttempt, StudentAnswer } from '@/lib/types';
+import { MCQ_OPTION_KEYS, MCQ_OPTION_LABELS, MCQ_OPTION_VALUES, type McqOptionLetter } from '@/lib/mcq-options';
 import { Button } from '@/components/ui/button';
 import ExamTimer from '@/components/ExamTimer';
 import { ArrowLeft, CirclePlay as PlayCircle, CircleCheck as CheckCircle2, Circle as XCircle, TriangleAlert as AlertTriangle, Trophy, Clock, BookOpen } from 'lucide-react';
-
-const OPTION_LABELS: Record<string, string> = { a: 'A', b: 'B', c: 'C', d: 'D' };
-const OPTION_KEYS = ['option_a', 'option_b', 'option_c', 'option_d'] as const;
-const OPTION_VALUES = ['a', 'b', 'c', 'd'] as const;
+import DashboardLayout from '@/components/DashboardLayout';
 
 type Phase = 'loading' | 'preview' | 'active' | 'review';
 
@@ -27,7 +25,7 @@ export default function StudentExamPage() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null);
-  const [answers, setAnswers] = useState<Record<string, 'a' | 'b' | 'c' | 'd'>>({});
+  const [answers, setAnswers] = useState<Record<string, McqOptionLetter>>({});
   const [savedAnswers, setSavedAnswers] = useState<Record<string, StudentAnswer>>({});
   const [submitting, setSubmitting] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -58,8 +56,10 @@ export default function StudentExamPage() {
         setPhase('review');
       } else {
         const answersRes = await supabase.from('student_answers').select('*').eq('attempt_id', attemptRes.data.id);
-        const selMap: Record<string, 'a' | 'b' | 'c' | 'd'> = {};
-        (answersRes.data || []).forEach((a) => { if (a.selected_option) selMap[a.question_id] = a.selected_option; });
+        const selMap: Record<string, McqOptionLetter> = {};
+        (answersRes.data || []).forEach((a) => {
+          if (a.selected_option) selMap[a.question_id] = a.selected_option as McqOptionLetter;
+        });
         setAnswers(selMap);
         setPhase('active');
       }
@@ -70,7 +70,7 @@ export default function StudentExamPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user) { router.push('/auth'); return; }
+      if (!user) { router.push('/'); return; }
       if (profile && profile.role !== 'student') { router.push('/teacher/dashboard'); return; }
       if (profile) loadData();
     }
@@ -93,7 +93,7 @@ export default function StudentExamPage() {
     setStarting(false);
   };
 
-  const saveAnswer = useCallback(async (questionId: string, option: 'a' | 'b' | 'c' | 'd') => {
+  const saveAnswer = useCallback(async (questionId: string, option: McqOptionLetter) => {
     if (!attempt) return;
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
     await supabase.from('student_answers').upsert({
@@ -152,9 +152,11 @@ export default function StudentExamPage() {
 
   if (phase === 'loading' || authLoading) {
     return (
+      <DashboardLayout role="student">
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
+      </DashboardLayout>
     );
   }
 
@@ -166,14 +168,15 @@ export default function StudentExamPage() {
     const isBeforeStart = exam.start_time && new Date(exam.start_time) > now;
     const isAfterEnd = exam.end_time && new Date(exam.end_time) < now;
     return (
+      <DashboardLayout role="student">
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center p-4">
         <div className="w-full max-w-lg">
           <Button variant="ghost" size="sm" asChild className="gap-1.5 text-slate-500 mb-6">
             <Link href="/student/dashboard"><ArrowLeft className="h-4 w-4" />Dashboard</Link>
           </Button>
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 mx-auto mb-6">
-              <BookOpen className="h-8 w-8 text-blue-600" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mx-auto mb-6">
+              <BookOpen className="h-8 w-8 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">{exam.title}</h1>
             {exam.description && <p className="text-slate-500 mb-6 text-sm leading-relaxed">{exam.description}</p>}
@@ -220,7 +223,7 @@ export default function StudentExamPage() {
               <Button
                 onClick={startExam}
                 disabled={starting}
-                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-base font-semibold"
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-base font-semibold"
               >
                 {starting ? <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <><PlayCircle className="h-5 w-5 mr-2" />Start Exam</>}
               </Button>
@@ -228,6 +231,7 @@ export default function StudentExamPage() {
           </div>
         </div>
       </div>
+      </DashboardLayout>
     );
   }
 
@@ -237,7 +241,7 @@ export default function StudentExamPage() {
     const getGrade = (p: number) => {
       if (p >= 90) return { label: 'A+', color: 'text-emerald-600' };
       if (p >= 80) return { label: 'A', color: 'text-emerald-600' };
-      if (p >= 70) return { label: 'B', color: 'text-blue-600' };
+      if (p >= 70) return { label: 'B', color: 'text-primary' };
       if (p >= 60) return { label: 'C', color: 'text-amber-600' };
       if (p >= 50) return { label: 'D', color: 'text-orange-600' };
       return { label: 'F', color: 'text-red-600' };
@@ -245,6 +249,7 @@ export default function StudentExamPage() {
     const grade = getGrade(pct);
 
     return (
+      <DashboardLayout role="student">
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8">
           <Button variant="ghost" size="sm" asChild className="gap-1.5 text-slate-500 -ml-2 mb-6">
@@ -301,8 +306,8 @@ export default function StudentExamPage() {
                       )}
                       {q.question_text && <p className="text-sm font-medium text-slate-800 mb-3">{q.question_text}</p>}
                       <div className="space-y-1.5">
-                        {OPTION_VALUES.map((opt, i) => {
-                          const optKey = OPTION_KEYS[i];
+                        {MCQ_OPTION_VALUES.map((opt, i) => {
+                          const optKey = MCQ_OPTION_KEYS[i];
                           const isCorrectOpt = q.correct_option === opt;
                           const isSelectedOpt = selected === opt;
                           return (
@@ -315,7 +320,7 @@ export default function StudentExamPage() {
                                 'bg-white/60 text-slate-500'
                               }`}
                             >
-                              <span className="font-bold shrink-0">{OPTION_LABELS[opt]}.</span>
+                              <span className="font-bold shrink-0">{MCQ_OPTION_LABELS[opt]}.</span>
                               {q[optKey]}
                               {isCorrectOpt && <CheckCircle2 className="h-4 w-4 ml-auto shrink-0 text-emerald-500" />}
                               {isSelectedOpt && !isCorrectOpt && <XCircle className="h-4 w-4 ml-auto shrink-0 text-red-400" />}
@@ -332,6 +337,7 @@ export default function StudentExamPage() {
           </div>
         </div>
       </div>
+      </DashboardLayout>
     );
   }
 
@@ -341,6 +347,7 @@ export default function StudentExamPage() {
     const question = questions[currentQ];
 
     return (
+      <DashboardLayout role="student">
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
         {/* Exam header bar */}
         <div className="sticky top-16 z-40 bg-white border-b border-slate-200 shadow-sm">
@@ -359,7 +366,7 @@ export default function StudentExamPage() {
                 size="sm"
                 onClick={() => setShowSubmitConfirm(true)}
                 disabled={submitting}
-                className="bg-blue-600 hover:bg-blue-700 h-9"
+                className="bg-primary hover:bg-primary/90 h-9"
               >
                 Submit
               </Button>
@@ -367,7 +374,7 @@ export default function StudentExamPage() {
           </div>
           {/* Progress bar */}
           <div className="h-1 bg-slate-100">
-            <div className="h-full bg-blue-500 transition-all" style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
+            <div className="h-full bg-primary transition-all" style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
           </div>
         </div>
 
@@ -395,8 +402,8 @@ export default function StudentExamPage() {
                     <p className="text-base font-medium text-slate-900 mb-6 leading-relaxed">{question.question_text}</p>
                   )}
                   <div className="space-y-3">
-                    {OPTION_VALUES.map((opt, i) => {
-                      const optKey = OPTION_KEYS[i];
+                    {MCQ_OPTION_VALUES.map((opt, i) => {
+                      const optKey = MCQ_OPTION_KEYS[i];
                       const isSelected = answers[question.id] === opt;
                       return (
                         <button
@@ -404,16 +411,16 @@ export default function StudentExamPage() {
                           onClick={() => saveAnswer(question.id, opt)}
                           className={`w-full flex items-center gap-3.5 rounded-xl border-2 px-4 py-3.5 text-left text-sm transition-all ${
                             isSelected
-                              ? 'border-blue-500 bg-blue-50 text-blue-900'
+                              ? 'border-primary bg-primary/10 text-foreground'
                               : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                           }`}
                         >
                           <div className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${
-                            isSelected ? 'border-blue-500 bg-blue-500' : 'border-slate-300'
+                            isSelected ? 'border-primary bg-primary' : 'border-slate-300'
                           }`}>
                             {isSelected && <div className="h-2 w-2 rounded-full bg-white" />}
                           </div>
-                          <span className={`font-semibold mr-0.5 ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>{OPTION_LABELS[opt]}.</span>
+                          <span className={`font-semibold mr-0.5 ${isSelected ? 'text-primary' : 'text-slate-400'}`}>{MCQ_OPTION_LABELS[opt]}.</span>
                           <span>{question[optKey]}</span>
                         </button>
                       );
@@ -436,7 +443,7 @@ export default function StudentExamPage() {
                         if (currentQ < questions.length - 1) setCurrentQ((p) => p + 1);
                         else setShowSubmitConfirm(true);
                       }}
-                      className={currentQ === questions.length - 1 ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                      className={currentQ === questions.length - 1 ? 'bg-primary hover:bg-primary/90' : ''}
                     >
                       {currentQ === questions.length - 1 ? 'Finish & Submit' : 'Next'}
                     </Button>
@@ -456,7 +463,7 @@ export default function StudentExamPage() {
                       onClick={() => setCurrentQ(idx)}
                       className={`h-9 w-full rounded-lg text-xs font-bold transition-all ${
                         idx === currentQ
-                          ? 'bg-blue-600 text-white shadow-sm'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
                           : answers[q.id]
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -474,13 +481,13 @@ export default function StudentExamPage() {
                     <div className="h-3 w-3 rounded bg-slate-100" />Unanswered
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <div className="h-3 w-3 rounded bg-blue-600" />Current
+                    <div className="h-3 w-3 rounded bg-primary" />Current
                   </div>
                 </div>
                 <Button
                   onClick={() => setShowSubmitConfirm(true)}
                   disabled={submitting}
-                  className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-sm"
+                  className="w-full mt-4 bg-primary hover:bg-primary/90 text-sm"
                 >
                   Submit Exam
                 </Button>
@@ -511,7 +518,7 @@ export default function StudentExamPage() {
                   Go Back
                 </Button>
                 <Button
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  className="flex-1 bg-primary hover:bg-primary/90"
                   onClick={gradeAndSubmit}
                   disabled={submitting}
                 >
@@ -522,6 +529,7 @@ export default function StudentExamPage() {
           </div>
         )}
       </div>
+      </DashboardLayout>
     );
   }
 
