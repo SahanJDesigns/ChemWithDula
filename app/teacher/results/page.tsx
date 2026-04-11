@@ -21,7 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AttemptAnswerBreakdown, AnswerWithQuestion } from '@/components/AttemptAnswerBreakdown';
 import { BarChart3, Clock, Loader2, Users } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 
@@ -43,7 +42,6 @@ export default function TeacherResultsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailAttempt, setDetailAttempt] = useState<AttemptRow | null>(null);
   const [detailQuestions, setDetailQuestions] = useState<Question[]>([]);
-  const [detailAnswers, setDetailAnswers] = useState<AnswerWithQuestion[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -80,7 +78,6 @@ export default function TeacherResultsPage() {
     setDetailOpen(true);
     setDetailLoading(true);
     setDetailQuestions([]);
-    setDetailAnswers([]);
 
     const [qRes, aRes] = await Promise.all([
       supabase.from('questions').select('*').eq('exam_id', attempt.exam_id).order('order_index'),
@@ -88,7 +85,6 @@ export default function TeacherResultsPage() {
     ]);
 
     setDetailQuestions(qRes.data || []);
-    setDetailAnswers((aRes.data || []) as AnswerWithQuestion[]);
     setDetailLoading(false);
   }, []);
 
@@ -133,7 +129,6 @@ export default function TeacherResultsPage() {
     if (!open) {
       setDetailAttempt(null);
       setDetailQuestions([]);
-      setDetailAnswers([]);
     }
   };
 
@@ -287,59 +282,6 @@ export default function TeacherResultsPage() {
           )}
         </div>
       </div>
-
-      <Dialog open={detailOpen} onOpenChange={onDetailOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden sm:max-w-3xl">
-          <DialogHeader className="shrink-0 border-b border-border px-6 pb-4 pt-6 text-left">
-            <DialogTitle className="pr-8">
-              {detailAttempt?.profiles?.full_name || 'Student'}
-              {detailExam && (
-                <span className="mt-1 block text-sm font-normal text-muted-foreground">{detailExam.title}</span>
-              )}
-            </DialogTitle>
-            <div className="flex flex-wrap items-center gap-2 pt-2 text-foreground/90" aria-live="polite">
-              {detailLoading ? (
-                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading attempt…
-                </span>
-              ) : detailAttempt?.is_graded ? (
-                <>
-                  <span className="text-sm font-semibold">
-                    Score: {detailAttempt.score}/{detailAttempt.total_points}
-                    {detailPct !== null && (
-                      <span className="text-slate-500 font-normal"> ({detailPct}%)</span>
-                    )}
-                  </span>
-                  {detailGrade && (
-                    <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${detailGrade.color}`}
-                    >
-                      {detailGrade.label}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-sm text-amber-800">
-                  <Clock className="h-4 w-4" />
-                  In progress — answers may be incomplete.
-                </span>
-              )}
-            </div>
-          </DialogHeader>
-          <div className="px-6 py-4 overflow-y-auto flex-1 min-h-0">
-            {detailLoading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : detailQuestions.length === 0 ? (
-              <p className="py-4 text-sm text-muted-foreground">No questions.</p>
-            ) : (
-              <AttemptAnswerBreakdown questions={detailQuestions} answers={detailAnswers} />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }
