@@ -93,7 +93,7 @@ export default function StudentExamPage() {
     setStarting(false);
   };
 
-  const saveAnswer = async (questionId: string, option: 'a' | 'b' | 'c' | 'd') => {
+  const saveAnswer = useCallback(async (questionId: string, option: 'a' | 'b' | 'c' | 'd') => {
     if (!attempt) return;
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
     await supabase.from('student_answers').upsert({
@@ -101,7 +101,7 @@ export default function StudentExamPage() {
       question_id: questionId,
       selected_option: option,
     }, { onConflict: 'attempt_id,question_id' });
-  };
+  }, [attempt]);
 
   const gradeAndSubmit = useCallback(async () => {
     if (!attempt || submitRef.current) return;
