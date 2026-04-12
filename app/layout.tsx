@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'ExamFlow',
+  title: 'CHEM WITH DULA',
   description: 'Timed MCQ exams with instant grading.',
 };
 

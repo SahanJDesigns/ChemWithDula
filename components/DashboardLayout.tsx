@@ -87,7 +87,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
                 <BookOpen className="h-4 w-4" strokeWidth={2} />
               </span>
-              <span className="font-semibold tracking-tight inline ">ExamFlow</span>
+              <span className="font-semibold tracking-tight inline ">CHEM WITH DULA</span>
             </button>
 
           {navItems.map((item) => {

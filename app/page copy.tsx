@@ -86,23 +86,30 @@ function AuthForm() {
     <div className="flex min-h-[calc(100vh)] bg-muted/30">
 
       {/* ── LEFT PANEL ─────────────────────────────────────────────────── */}
-      <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-primary to-neutral-50 p-10 text-primary-foreground lg:flex xl:p-14 relative overflow-hidden">
+      <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-primary to-teal-900 p-10 text-primary-foreground lg:flex xl:p-14 relative overflow-hidden">
 
-    {/* Big CHEM watermark */}
-    <span
-      className="pointer-events-none select-none absolute flex items-center justify-center font-black tracking-tighter text-white leading-none"
-      style={{
-        fontSize: 'clamp(100px, 16vw, 190px)',
-        opacity: 0.4,
-        fontFamily: 'Georgia, serif',
-        zIndex: 0,
-        top: '25%',
-        left: 0,
-        right: 0,
-      }}
-    >
-      CHEM
-    </span>
+        {/* Big CHEM watermark */}
+        <span
+          className="pointer-events-none select-none absolute inset-0 flex items-center justify-center font-black tracking-tighter text-white leading-none"
+          style={{
+            fontSize: 'clamp(100px, 16vw, 190px)',
+            opacity: 0.2,
+            fontFamily: 'Georgia, serif',
+            zIndex: 0,
+          }}
+        >
+          CHEM
+        </span>
+
+        {/* Dot grid overlay */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.09) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+            zIndex: 0,
+          }}
+        />
 
         {/* Top branding */}
         <div className="relative z-10 flex items-center gap-2">
@@ -113,11 +120,11 @@ function AuthForm() {
         </div>
 
         {/* ── Chemist Avatar ── */}
-        <div className="absolute z-10 flex flex-col items-center top-[54%] left-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div className="relative z-10 flex flex-col items-center">
           <img
             src="/dula.png"
             alt="Chemist avatar"
-            className="w-72 rounded-full border-4 border-white/30 shadow-lg"
+            className="w-72 rounded-full border-4 border-white/10 shadow-lg"
           />
         </div>
 
