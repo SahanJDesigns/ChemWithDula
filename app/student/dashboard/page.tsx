@@ -26,14 +26,7 @@ export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('active');
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) { router.push('/'); return; }
-      if (profile && profile.role !== 'student') { router.push('/teacher/dashboard'); return; }
-      if (profile) fetchExams();
-    }
-  }, [user, profile, authLoading, router]);
-
-  const fetchExams = async () => {
+    const fetchExams = async () => {
     const [examsRes, attemptsRes] = await Promise.all([
       supabase.from('exams').select('*, questions(count)').eq('is_published', true).order('created_at', { ascending: false }),
       supabase.from('exam_attempts').select('*').eq('student_id', user!.id),
@@ -51,6 +44,14 @@ export default function StudentDashboard() {
     setExams(enriched);
     setLoading(false);
   };
+    if (!authLoading) {
+      if (!user) { router.push('/'); return; }
+      if (profile && profile.role !== 'student') { router.push('/teacher/dashboard'); return; }
+      if (profile) fetchExams();
+    }
+  }, [user, profile, authLoading, router]);
+
+ 
 
   const getExamTab = (exam: ExamWithAttempt): Tab => {
     const status = getStudentExamStatus(exam, exam.attempt);

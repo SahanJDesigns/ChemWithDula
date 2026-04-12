@@ -13,7 +13,7 @@ export default function Navbar() {
   const router = useRouter();
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
+    <nav className="sticky top-0 w-full border-b border-border bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
       <div className="mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
@@ -29,7 +29,7 @@ export default function Navbar() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            {user && profile ? (
+            {user && profile && (
               <>
                 <div className="hidden sm:flex items-center gap-2 rounded-full border border-border bg-muted/60 px-3 py-1.5">
                   <User className="h-3.5 w-3.5 text-muted-foreground" />
@@ -44,15 +44,6 @@ export default function Navbar() {
                     {profile.role}
                   </span>
                 </div>
-              </>
-            ) : (
-              <>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/auth">Sign in</Link>
-                </Button>
-                <Button size="sm" asChild>
-                  <Link href="/auth?tab=signup">Start</Link>
-                </Button>
               </>
             )}
           </div>

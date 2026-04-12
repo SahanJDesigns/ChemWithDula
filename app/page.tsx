@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, GraduationCap, Users, Eye, EyeOff, Clock, ChartBar } from 'lucide-react';
+import { BookOpen, Users, Eye, EyeOff, Clock, ChartBar } from 'lucide-react';
 
 function AuthForm() {
   const router = useRouter();
@@ -83,14 +83,14 @@ function AuthForm() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+      <div className="flex min-h-[calc(100vh)] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-muted/30">
+    <div className="flex min-h-[calc(100vh)] bg-muted/30">
       <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-primary to-teal-900 p-10 text-primary-foreground lg:flex xl:p-14">
         <div className="flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-foreground/15">

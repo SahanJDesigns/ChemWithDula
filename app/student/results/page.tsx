@@ -85,15 +85,13 @@ export default function StudentResultsPage() {
     }
   };
 
-  const getGrade = (score: number, total: number) => {
-    const pct = (score / total) * 100;
-    if (pct >= 90) return { label: 'A+', color: 'text-emerald-700 bg-emerald-50' };
-    if (pct >= 80) return { label: 'A',  color: 'text-emerald-600 bg-emerald-50' };
-    if (pct >= 70) return { label: 'B',  color: 'text-sky-800 bg-sky-500/10' };
-    if (pct >= 60) return { label: 'C',  color: 'text-amber-700 bg-amber-50' };
-    if (pct >= 50) return { label: 'D',  color: 'text-orange-700 bg-orange-50' };
-    return             { label: 'F',  color: 'text-red-700 bg-red-50' };
-  };
+   const getGrade = (p: number) => {
+      if (p >= 75) return { label: 'A', color: 'text-emerald-600' };
+      if (p >= 65) return { label: 'B', color: 'text-emerald-600' };
+      if (p >= 55) return { label: 'C', color: 'text-primary' };
+      if (p >= 35) return { label: 'S', color: 'text-amber-600' };
+      return { label: 'W', color: 'text-red-600' };
+    };
 
   if (authLoading || loading) {
     return (
@@ -104,15 +102,6 @@ export default function StudentResultsPage() {
      </DashboardLayout>
     );
   }
-
-  const detailPct =
-    detailAttempt?.total_points && detailAttempt.is_graded
-      ? Math.round(((detailAttempt.score || 0) / detailAttempt.total_points) * 100)
-      : null;
-  const detailGrade =
-    detailAttempt?.is_graded && detailAttempt.total_points
-      ? getGrade(detailAttempt.score || 0, detailAttempt.total_points)
-      : null;
 
   return (
     <DashboardLayout role="student">
@@ -134,7 +123,7 @@ export default function StudentResultsPage() {
                     : 0;
                   const grade =
                     attempt.is_graded && attempt.total_points
-                      ? getGrade(attempt.score || 0, attempt.total_points)
+                      ? getGrade(attempt.score || 0)
                       : null;
                   const submittedAt = attempt.submitted_at
                     ? new Date(attempt.submitted_at).toLocaleDateString(undefined, {
@@ -196,7 +185,7 @@ export default function StudentResultsPage() {
                             variant="ghost"
                             size="sm"
                             className="h-8 px-0 text-primary hover:bg-transparent hover:underline"
-                            onClick={() => router.push(`/student/exams/${attempt.id}`)}
+                            onClick={() => router.push(`/student/exams/${attempt.exam_id}`)}
                           >
                             View details →
                           </Button>
@@ -227,7 +216,7 @@ export default function StudentResultsPage() {
                         : 0;
                       const grade =
                         attempt.is_graded && attempt.total_points
-                          ? getGrade(attempt.score || 0, attempt.total_points)
+                          ? getGrade(attempt.score || 0)
                           : null;
                       const submittedAt = attempt.submitted_at
                         ? new Date(attempt.submitted_at).toLocaleDateString(undefined, {

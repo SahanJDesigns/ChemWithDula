@@ -7,9 +7,9 @@ export const MCQ_OPTION_VALUES = ['a', 'b', 'c', 'd', 'e'] as const;
 export type McqOptionLetter = (typeof MCQ_OPTION_VALUES)[number];
 
 export const MCQ_OPTION_LABELS: Record<McqOptionLetter, string> = {
-  a: 'A',
-  b: 'B',
-  c: 'C',
-  d: 'D',
-  e: 'E',
+  a: '1',
+  b: '2',
+  c: '3',
+  d: '4',
+  e: '5',
 };

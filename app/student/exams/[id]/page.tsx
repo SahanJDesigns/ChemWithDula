@@ -234,22 +234,71 @@ export default function StudentExamPage() {
   if (phase === 'review' && attempt) {
     const pct = attempt.total_points ? Math.round(((attempt.score || 0) / attempt.total_points) * 100) : 0;
     const getGrade = (p: number) => {
-      if (p >= 90) return { label: 'A+', color: 'text-emerald-600' };
-      if (p >= 80) return { label: 'A', color: 'text-emerald-600' };
-      if (p >= 70) return { label: 'B', color: 'text-primary' };
-      if (p >= 60) return { label: 'C', color: 'text-amber-600' };
-      if (p >= 50) return { label: 'D', color: 'text-orange-600' };
-      return { label: 'F', color: 'text-red-600' };
+      if (p >= 75) return { label: 'A', color: 'text-emerald-600' };
+      if (p >= 65) return { label: 'B', color: 'text-emerald-600' };
+      if (p >= 55) return { label: 'C', color: 'text-primary' };
+      if (p >= 35) return { label: 'S', color: 'text-amber-600' };
+      return { label: 'W', color: 'text-red-600' };
     };
     const grade = getGrade(pct);
 
     return (
       <DashboardLayout role="student">
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8">
+        <div className="mx-auto px-4 sm:px-6 py-8">
+       
+
           {/* Answers breakdown */}
           <h2 className="text-base font-semibold text-slate-900 mb-4">Answer Review</h2>
           <div className="space-y-4">
+               {/* ResultSummary */}
+                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm text-center mb-8">
+                
+                 <div className=" mx-auto rounded-xl border border-slate-200 bg-white shadow-sm p-5 sm:p-6">
+  
+              {/* Score Section */}
+              <div className="text-center mb-4">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+                  Your Score: {attempt.score} / {attempt.total_points}
+                </h1>
+                <p className={`text-base sm:text-lg font-semibold ${grade.color}`}>
+                  Grade: {grade.label}
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-slate-100 my-4" />
+
+              {/* Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
+                
+                <div>
+                  <span className="font-medium text-slate-800">Status:</span>{" "}
+                  {attempt.is_graded ? "Graded" : "Pending"}
+                </div>
+
+                <div>
+                  <span className="font-medium text-slate-800">Started:</span>{" "}
+                  {new Date(attempt.started_at).toLocaleString()}
+                </div>
+
+                <div>
+                  <span className="font-medium text-slate-800">Submitted:</span>{" "}
+                  { attempt.submitted_at ? new Date(attempt.submitted_at).toLocaleString() : '—' }
+                </div>
+
+                <div>
+                  <span className="font-medium text-slate-800">Duration:</span>{" "}
+                  {Math.floor(
+                    (attempt.submitted_at && attempt.started_at
+                      ? (new Date(attempt.submitted_at).getTime() - new Date(attempt.started_at).getTime())
+                      : 0) / 60000
+                  )} mins
+                </div>
+
+              </div>
+            </div>
+                </div>
             {questions.map((q, idx) => {
               const ans = savedAnswers[q.id];
               const isCorrect = ans?.is_correct;
@@ -339,7 +388,7 @@ export default function StudentExamPage() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 py-6">
+        <div className="mx-auto px-4 sm:px-6 py-6">
           <div className="grid lg:grid-cols-4 gap-6">
             {/* Question panel */}
             <div className="lg:col-span-3">
@@ -434,24 +483,6 @@ export default function StudentExamPage() {
                     </button>
                   ))}
                 </div>
-                <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <div className="h-3 w-3 rounded bg-emerald-50 border border-emerald-200" />Answered
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <div className="h-3 w-3 rounded bg-slate-100" />Unanswered
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <div className="h-3 w-3 rounded bg-primary" />Current
-                  </div>
-                </div>
-                <Button
-                  onClick={() => setShowSubmitConfirm(true)}
-                  disabled={submitting}
-                  className="w-full mt-4 bg-primary hover:bg-primary/90 text-sm"
-                >
-                  Submit Exam
-                </Button>
               </div>
             </div>
           </div>

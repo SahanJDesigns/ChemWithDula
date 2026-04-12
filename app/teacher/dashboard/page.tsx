@@ -16,15 +16,10 @@ export default function TeacherDashboard() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
+ 
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) { router.push('/'); return; }
-      if (profile && profile.role !== 'teacher') { router.push('/student/dashboard'); return; }
-      if (profile) fetchExams();
-    }
-  }, [user, profile, authLoading, router]);
-
+     
   const fetchExams = async () => {
     if (!user) return;
     const { data } = await supabase
@@ -48,7 +43,15 @@ export default function TeacherDashboard() {
     }
     setLoading(false);
   };
+    if (!authLoading) {
+      if (!user) { router.push('/'); return; }
+      if (profile && profile.role !== 'teacher') { router.push('/student/dashboard'); return; }
+      if (profile) fetchExams();
+    }
+  }, [user, profile, authLoading, router]);
 
+
+  console.log(user, profile);
   const togglePublish = async (exam: Exam) => {
     await supabase.from('exams').update({ is_published: !exam.is_published }).eq('id', exam.id);
     setExams((prev) => prev.map((e) => e.id === exam.id ? { ...e, is_published: !e.is_published } : e));

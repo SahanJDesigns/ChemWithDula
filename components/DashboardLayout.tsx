@@ -26,6 +26,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const { sidebarOpen, setSidebarOpen } = useSidebar();
 
   const handleSignOut = async () => {
+    setSidebarOpen(false);
     await signOut();
     router.push('/');
   };
@@ -66,17 +67,29 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         />
       )}
 
+
       {/* Sidebar */}
       <aside
         className={`
           flex flex-col border-r border-border bg-card h-screen
           transition-all duration-300
-          fixed inset-y-0 left-0 z-30 w-64
+          fixed inset-y-0 left-0 z-30 w-64 
           md:static md:z-auto md:translate-x-0 md:flex md:shrink-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-4">
+
+           <button
+            onClick={()=> setSidebarOpen(false)}
+              className="flex min-w-0 items-center gap-2 rounded-lg px-2  pb-6 text-foreground transition-opacity hover:opacity-90 md:hidden"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <BookOpen className="h-4 w-4" strokeWidth={2} />
+              </span>
+              <span className="font-semibold tracking-tight inline ">ExamFlow</span>
+            </button>
+
           {navItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + '/');
