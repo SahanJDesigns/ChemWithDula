@@ -201,11 +201,11 @@ export default function StudentExamPage() {
               <div className="flex gap-2.5">
                 <AlertTriangle className="h-4.5 w-4.5 text-amber-500 shrink-0 mt-0.5" size={18} />
                 <div className="text-sm text-amber-800">
-                  <p className="font-semibold mb-1">Before you begin:</p>
+                  <p className="font-semibold mb-1">උපදෙස්:</p>
                   <ul className="space-y-1 text-xs">
-                    <li>• Once started, the timer cannot be paused.</li>
-                    <li>• You can only attempt this exam once.</li>
-                    <li>• Your exam will be submitted automatically when time runs out.</li>
+                    <li>• මෙම ප්‍රශ්න පත්‍රයේ ප්‍රශ්න 50ක් ඇත.</li>
+                    <li>• සියලුම ප්‍රශ්නවලට පිළිතුරු සැපයීම අනිවාර්ය වේ.</li>
+                    <li>• ගණක යන්ත්‍ර භාවිතා කිරීමට අවසර නොමැත.</li>
                   </ul>
                 </div>
               </div>
