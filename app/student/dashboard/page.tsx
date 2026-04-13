@@ -117,7 +117,7 @@ export default function StudentDashboard() {
               const isCompleted = status === 'completed';
 
               const statusColors = {
-                completed: { badge: 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200', button: 'bg-emerald-600 hover:bg-emerald-600/90' },
+                completed: { badge: 'bg-primary/10 text-primary', button: 'bg-primary hover:bg-primary/90' },
                 in_progress: { badge: 'bg-primary/10 text-primary', button: 'bg-primary hover:bg-primary/90' },
                 expired: { badge: 'bg-muted text-muted-foreground', button: '' },
                 upcoming: { badge: 'bg-amber-500/10 text-amber-900 dark:text-amber-200', button: '' },
@@ -151,13 +151,13 @@ export default function StudentDashboard() {
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Score</span>
-                        <span className="text-sm font-bold text-emerald-600">
+                        <span className="text-sm font-bold text-primary">
                           {exam.attempt.score}/{exam.attempt.total_points}
                         </span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-muted">
                         <div
-                          className="h-full bg-emerald-500 rounded-full"
+                          className="h-full bg-primary rounded-full"
                           style={{ width: `${Math.round(((exam.attempt.score || 0) / (exam.attempt.total_points || 1)) * 100)}%` }}
                         />
                       </div>
