@@ -6,6 +6,7 @@ import { useSidebar } from '@/contexts/SidebarContext';
 import { BookOpen, LayoutGrid, ChartBar as BarChart3, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
+import Navbar from './Navbar';
 
 interface NavItem {
   label: string;
@@ -57,6 +58,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         ];
 
   return (
+    <> 
+      <Navbar />
     <div className="flex h-screen overflow-hidden bg-muted/40">
 
       {/* Backdrop — mobile only */}
@@ -139,5 +142,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
       </main>
 
     </div>
+    </>
   );
 }

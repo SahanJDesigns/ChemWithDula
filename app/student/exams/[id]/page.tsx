@@ -363,9 +363,9 @@ export default function StudentExamPage() {
     const question = questions[currentQ];
 
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+      <div className="bg-slate-50 h-screen">
         {/* Exam header bar */}
-        <div className="sticky top-16 z-40 bg-white border-b border-slate-200 shadow-sm">
+        <div className="sticky z-40 bg-white border-b border-slate-200 shadow-sm">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 flex items-center justify-between h-14 gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <h2 className="font-semibold text-slate-900 text-sm truncate">{exam.title}</h2>
