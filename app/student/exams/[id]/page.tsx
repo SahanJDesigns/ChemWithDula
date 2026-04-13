@@ -313,8 +313,13 @@ export default function StudentExamPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Question {idx + 1} &bull; {q.points} pt{q.points !== 1 ? 's' : ''}</p>
                       {q.image_url && (
-                        <Image src={q.image_url} alt="Question" width={240} height={140} className="rounded-lg border border-slate-200 mb-3 max-h-40 w-auto object-contain" />
-                      )}
+                          <Image
+                            src={q.image_url}
+                            alt="Question"
+                            width={0}
+                            height={140}
+                            className="rounded-lg border border-slate-200 mb-3 w-full h-auto object-contain"
+                          />                      )}
                       {q.question_text && <p className="text-sm font-medium text-slate-800 mb-3">{q.question_text}</p>}
                       <div className="space-y-1.5">
                         {MCQ_OPTION_VALUES.map((opt, i) => {
@@ -399,13 +404,13 @@ export default function StudentExamPage() {
                   </p>
                   {question.image_url && (
                     <div className="mb-4">
-                      <Image
-                        src={question.image_url}
-                        alt="Question"
-                        width={600}
-                        height={300}
-                        className="rounded-xl border border-slate-200 max-h-64 w-auto object-contain"
-                      />
+                    <Image
+                      src={question.image_url}
+                      alt="Question"
+                      width={0}
+                      height={140}
+                      className="rounded-lg border border-slate-200 mb-3 w-full h-auto object-contain"
+                    />
                     </div>
                   )}
                   {question.question_text && (
