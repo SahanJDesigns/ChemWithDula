@@ -73,9 +73,6 @@ export default function NewExamPage() {
     );
   }
   return (
-    <DashboardLayout
-      role="teacher"
-    >
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -160,6 +157,5 @@ export default function NewExamPage() {
           </div>
           </form>
         </div>
-    </DashboardLayout>
   );
 }

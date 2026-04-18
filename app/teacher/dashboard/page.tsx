@@ -76,7 +76,6 @@ export default function TeacherDashboard() {
 
 
   return (
-    <DashboardLayout role="teacher">
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Exams list */}
         {exams.length === 0 ? (
@@ -128,13 +127,6 @@ export default function TeacherDashboard() {
                           <Button variant="ghost" size="sm" asChild className="h-8 px-2.5 text-slate-500">
                             <Link href={`/teacher/exams/${exam.id}`}>Manage</Link>
                           </Button>
-                          {attempts > 0 && (
-                            <Button variant="ghost" size="sm" asChild className="h-8 px-2.5 text-primary hover:bg-primary/10">
-                              <Link href={`/teacher/exams/${exam.id}/results`}>
-                                <BarChart3 className="h-3.5 w-3.5" />
-                              </Link>
-                            </Button>
-                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -161,6 +153,5 @@ export default function TeacherDashboard() {
           </div>
         )}
       </div>
-    </DashboardLayout>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Exam, ExamAttempt, Question } from '@/lib/types';
+import { Exam, ExamAttempt } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,14 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { BarChart3, Clock, Loader2, Users } from 'lucide-react';
-import DashboardLayout from '@/components/DashboardLayout';
+import { BarChart3, Clock, Users } from 'lucide-react';
 
 interface AttemptRow extends Omit<ExamAttempt, 'profiles'> {
   profiles: { full_name: string } | null;
@@ -38,11 +31,6 @@ export default function TeacherResultsPage() {
 
   const [studentFilter, setStudentFilter] = useState('');
   const [examFilter, setExamFilter] = useState<string>('all');
-
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailAttempt, setDetailAttempt] = useState<AttemptRow | null>(null);
-  const [detailQuestions, setDetailQuestions] = useState<Question[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
@@ -73,21 +61,6 @@ export default function TeacherResultsPage() {
     setLoading(false);
   }, [user?.id]);
 
-  const openAttemptDetails = useCallback(async (attempt: AttemptRow) => {
-    setDetailAttempt(attempt);
-    setDetailOpen(true);
-    setDetailLoading(true);
-    setDetailQuestions([]);
-
-    const [qRes, aRes] = await Promise.all([
-      supabase.from('questions').select('*').eq('exam_id', attempt.exam_id).order('order_index'),
-      supabase.from('student_answers').select('*, questions(*)').eq('attempt_id', attempt.id),
-    ]);
-
-    setDetailQuestions(qRes.data || []);
-    setDetailLoading(false);
-  }, []);
-
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
@@ -114,24 +87,6 @@ export default function TeacherResultsPage() {
     });
   }, [attempts, studentFilter, examFilter]);
 
-  const getGrade = (score: number, total: number) => {
-    const pct = (score / total) * 100;
-    if (pct >= 90) return { label: 'A+', color: 'text-emerald-700 bg-emerald-50' };
-    if (pct >= 80) return { label: 'A', color: 'text-emerald-600 bg-emerald-50' };
-    if (pct >= 70) return { label: 'B', color: 'text-sky-800 bg-sky-500/10' };
-    if (pct >= 60) return { label: 'C', color: 'text-amber-700 bg-amber-50' };
-    if (pct >= 50) return { label: 'D', color: 'text-orange-700 bg-orange-50' };
-    return { label: 'F', color: 'text-red-700 bg-red-50' };
-  };
-
-  const onDetailOpenChange = (open: boolean) => {
-    setDetailOpen(open);
-    if (!open) {
-      setDetailAttempt(null);
-      setDetailQuestions([]);
-    }
-  };
-
   if (authLoading || loading) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
@@ -140,18 +95,7 @@ export default function TeacherResultsPage() {
     );
   }
 
-  const detailExam = detailAttempt ? examById[detailAttempt.exam_id] : null;
-  const detailPct =
-    detailAttempt?.total_points && detailAttempt.is_graded
-      ? Math.round(((detailAttempt.score || 0) / detailAttempt.total_points) * 100)
-      : null;
-  const detailGrade =
-    detailAttempt?.is_graded && detailAttempt.total_points
-      ? getGrade(detailAttempt.score || 0, detailAttempt.total_points)
-      : null;
-
   return (
-    <DashboardLayout role="teacher">
       <div className="min-h-[calc(100vh-4rem)]">
         <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
           <div className="mb-6">
@@ -266,7 +210,7 @@ export default function TeacherResultsPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 text-primary hover:bg-primary/10"
-                                onClick={() => openAttemptDetails(attempt)}
+                                onClick={() => router.push(`/teacher/results/${attempt.id}`)}
                               >
                                 View details
                               </Button>
@@ -282,6 +226,5 @@ export default function TeacherResultsPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
   );
 }
