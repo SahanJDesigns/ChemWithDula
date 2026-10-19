@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam, ExamAttempt } from '@/lib/types';
 import { getStudentExamStatus } from '@/lib/student-exam-status';
@@ -28,8 +28,8 @@ export default function StudentDashboard() {
   useEffect(() => {
     const fetchExams = async () => {
     const [examsRes, attemptsRes] = await Promise.all([
-      supabase.from('exams').select('*, questions(count)').eq('is_published', true).order('created_at', { ascending: false }),
-      supabase.from('exam_attempts').select('*').eq('student_id', user!.id),
+      neon.from('exams').select('*, questions(count)').eq('is_published', true).order('created_at', { ascending: false }),
+      neon.from('exam_attempts').select('*').eq('student_id', user!.id),
     ]);
 
     const attemptMap: Record<string, ExamAttempt> = {};

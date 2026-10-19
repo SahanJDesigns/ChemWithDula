@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam, Question } from '@/lib/types';
 import { MCQ_OPTION_KEYS, MCQ_OPTION_LABELS, MCQ_OPTION_VALUES, type McqOptionLetter } from '@/lib/mcq-options';
@@ -81,8 +81,8 @@ export default function ManageExamPage() {
 
   const fetchData = useCallback(async () => {
     const [examRes, questionsRes] = await Promise.all([
-      supabase.from('exams').select('*').eq('id', examId).maybeSingle(),
-      supabase.from('questions').select('*').eq('exam_id', examId).order('order_index'),
+      neon.from('exams').select('*').eq('id', examId).maybeSingle(),
+      neon.from('questions').select('*').eq('exam_id', examId).order('order_index'),
     ]);
     if (!examRes.data || examRes.data.teacher_id !== user?.id) {
       router.push('/teacher/dashboard');
@@ -128,7 +128,7 @@ export default function ManageExamPage() {
         start_time: metaForm.start_time ? new Date(metaForm.start_time).toISOString() : null,
         end_time: metaForm.end_time ? new Date(metaForm.end_time).toISOString() : null,
       };
-      await supabase.from('exams').update(updates).eq('id', exam.id);
+      await neon.from('exams').update(updates).eq('id', exam.id);
       setExam((prev) => prev ? { ...prev, ...updates } : prev);
       setEditingMeta(false);
     } catch {
@@ -145,9 +145,9 @@ export default function ManageExamPage() {
     try {
       const ext = file.name.split('.').pop();
       const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from('exam-images').upload(filename, file, { upsert: true });
+      const { error } = await neon.storage.from('exam-images').upload(filename, file, { upsert: true });
       if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from('exam-images').getPublicUrl(filename);
+      const { data: { publicUrl } } = neon.storage.from('exam-images').getPublicUrl(filename);
       setFormData((prev) => ({ ...prev, image_url: publicUrl }));
     } catch {
       setFormError('Image upload failed. Please try again.');
@@ -176,7 +176,7 @@ export default function ManageExamPage() {
     setSaving(true);
     try {
       if (editingId) {
-        await supabase.from('questions').update({
+        await neon.from('questions').update({
           question_text: formData.question_text.trim(),
           image_url: formData.image_url || null,
           option_a: formData.option_a.trim(),
@@ -188,7 +188,7 @@ export default function ManageExamPage() {
           points: formData.points,
         }).eq('id', editingId);
       } else {
-        await supabase.from('questions').insert({
+        await neon.from('questions').insert({
           exam_id: examId,
           question_text: formData.question_text.trim(),
           image_url: formData.image_url || null,
@@ -233,13 +233,13 @@ export default function ManageExamPage() {
 
   const deleteQuestion = async (id: string) => {
     if (!confirm('Delete this question?')) return;
-    await supabase.from('questions').delete().eq('id', id);
+    await neon.from('questions').delete().eq('id', id);
     setQuestions((prev) => prev.filter((q) => q.id !== id));
   };
 
   const togglePublish = async () => {
     if (!exam) return;
-    await supabase.from('exams').update({ is_published: !exam.is_published }).eq('id', exam.id);
+    await neon.from('exams').update({ is_published: !exam.is_published }).eq('id', exam.id);
     setExam((prev) => prev ? { ...prev, is_published: !prev.is_published } : prev);
   };
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Question } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,7 @@ export default function StudentResultsPage() {
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
 
-    const { data } = await supabase
+    const { data } = await neon
       .from('exam_attempts')
       .select('*, exams(id, title, end_time)')
       .eq('student_id', user.id)
@@ -69,8 +69,8 @@ export default function StudentResultsPage() {
     setDetailQuestions([]);
 
     const [qRes, aRes] = await Promise.all([
-      supabase.from('questions').select('*').eq('exam_id', attempt.exam_id).order('order_index'),
-      supabase.from('student_answers').select('*, questions(*)').eq('attempt_id', attempt.id),
+      neon.from('questions').select('*').eq('exam_id', attempt.exam_id).order('order_index'),
+      neon.from('student_answers').select('*, questions(*)').eq('attempt_id', attempt.id),
     ]);
 
     setDetailQuestions(qRes.data || []);

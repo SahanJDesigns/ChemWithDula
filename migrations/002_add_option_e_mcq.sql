@@ -1,3 +1,8 @@
+-- ==============================================================================
+-- Migration: 002_add_option_e_mcq.sql
+-- Description: Add option E support and constraints for 5-option MCQs
+-- ==============================================================================
+
 ALTER TABLE questions ADD COLUMN IF NOT EXISTS option_e text NOT NULL DEFAULT '';
 
 ALTER TABLE questions DROP CONSTRAINT IF EXISTS questions_correct_option_check;

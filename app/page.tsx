@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,16 +41,15 @@ function AuthForm() {
     if (password.length < 6) { setError('Password: min 6 characters.'); return; }
     setLoading(true);
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+      const { data, error: signUpError } = await neon.auth.signUp({
+        email,
+        password,
+        full_name: fullName.trim(),
+        role,
+        phone: phone.trim(),
+      });
       if (signUpError) throw signUpError;
-      if (data.user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          full_name: fullName.trim(),
-          role,
-          phone: phone.trim(),
-        });
-        if (profileError) throw profileError;
+      if (data?.user) {
         router.push(role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard');
       }
     } catch (err: unknown) {
@@ -65,7 +64,7 @@ function AuthForm() {
     setError('');
     setLoading(true);
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await neon.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Invalid credentials.');

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam, ExamAttempt } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,7 @@ export default function TeacherResultsPage() {
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
 
-    const { data: examsData } = await supabase
+    const { data: examsData } = await neon
       .from('exams')
       .select('*')
       .eq('teacher_id', user.id)
@@ -51,7 +51,7 @@ export default function TeacherResultsPage() {
     setExams(examsData);
     const examIds = examsData.map((e) => e.id);
 
-    const { data: attemptsData } = await supabase
+    const { data: attemptsData } = await neon
       .from('exam_attempts')
       .select('*, profiles(full_name)')
       .in('exam_id', examIds)

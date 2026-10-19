@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam } from '@/lib/types';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -22,7 +22,7 @@ export default function TeacherDashboard() {
      
   const fetchExams = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data } = await neon
       .from('exams')
       .select('*, questions(count)')
       .eq('teacher_id', user.id)
@@ -31,7 +31,7 @@ export default function TeacherDashboard() {
 
     if (data && data.length > 0) {
       const ids = data.map((e) => e.id);
-      const { data: attempts } = await supabase
+      const { data: attempts } = await neon
         .from('exam_attempts')
         .select('exam_id')
         .in('exam_id', ids);
@@ -53,13 +53,13 @@ export default function TeacherDashboard() {
 
   console.log(user, profile);
   const togglePublish = async (exam: Exam) => {
-    await supabase.from('exams').update({ is_published: !exam.is_published }).eq('id', exam.id);
+    await neon.from('exams').update({ is_published: !exam.is_published }).eq('id', exam.id);
     setExams((prev) => prev.map((e) => e.id === exam.id ? { ...e, is_published: !e.is_published } : e));
   };
 
   const deleteExam = async (id: string) => {
     if (!confirm('Delete this exam? This cannot be undone.')) return;
-    await supabase.from('exams').delete().eq('id', id);
+    await neon.from('exams').delete().eq('id', id);
     setExams((prev) => prev.filter((e) => e.id !== id));
   };
 

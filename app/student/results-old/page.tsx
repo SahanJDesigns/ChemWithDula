@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -98,7 +98,7 @@ export default function StudentResultsPage() {
   }, [user, profile, authLoading, router]);
 
   const fetchResults = async () => {
-    const { data: attempts, error } = await supabase
+    const { data: attempts, error } = await neon
       .from('exam_attempts')
       .select('id, exam_id, score, total_points, submitted_at, is_graded')
       .eq('student_id', user!.id)
@@ -112,7 +112,7 @@ export default function StudentResultsPage() {
     }
 
     const examIds = [...new Set(attempts.map((a) => a.exam_id))];
-    const { data: examsData } = await supabase.from('exams').select('id, title').in('id', examIds);
+    const { data: examsData } = await neon.from('exams').select('id, title').in('id', examIds);
     const titleMap = Object.fromEntries((examsData || []).map((e) => [e.id, e.title]));
 
     setRows(

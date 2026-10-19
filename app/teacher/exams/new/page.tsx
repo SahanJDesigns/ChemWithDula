@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,7 @@ export default function NewExamPage() {
       const utcStartTime = startTime ? localTimeToUTC(startTime) : null;
       const utcEndTime = endTime ? localTimeToUTC(endTime) : null;
 
-      const { data, error: insertError } = await supabase
+      const { data, error: insertError } = await neon
         .from('exams')
         .insert({
           title: title.trim(),

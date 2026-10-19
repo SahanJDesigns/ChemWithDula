@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam, ExamAttempt, Question, StudentAnswer } from '@/lib/types';
 import {
@@ -35,7 +35,7 @@ export default function TeacherAttemptDetailPage() {
   const load = useCallback(async () => {
     if (!user?.id) return;
 
-    const { data: row, error } = await supabase
+    const { data: row, error } = await neon
       .from('exam_attempts')
       .select('*, profiles(full_name), exams(*)')
       .eq('id', attemptId)
@@ -56,8 +56,8 @@ export default function TeacherAttemptDetailPage() {
     setAttempt(att);
 
     const [qRes, ansRes] = await Promise.all([
-      supabase.from('questions').select('*').eq('exam_id', att.exam_id).order('order_index'),
-      supabase.from('student_answers').select('*').eq('attempt_id', att.id),
+      neon.from('questions').select('*').eq('exam_id', att.exam_id).order('order_index'),
+      neon.from('student_answers').select('*').eq('attempt_id', att.id),
     ]);
 
     setQuestions(qRes.data || []);

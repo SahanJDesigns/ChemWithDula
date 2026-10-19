@@ -1,7 +1,15 @@
+export interface AuthUser {
+  id: string;
+  email: string;
+}
+
+export type User = AuthUser;
+
 export interface Profile {
   id: string;
   full_name: string;
   role: 'teacher' | 'student';
+  phone?: string;
   created_at: string;
 }
 

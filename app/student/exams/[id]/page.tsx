@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase';
+import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam, Question, ExamAttempt, StudentAnswer } from '@/lib/types';
 import { MCQ_OPTION_KEYS, MCQ_OPTION_LABELS, MCQ_OPTION_VALUES, type McqOptionLetter } from '@/lib/mcq-options';
@@ -36,26 +36,26 @@ export default function StudentExamPage() {
   const loadData = useCallback(async () => {
     if (!user) return;
     const [examRes, attemptRes] = await Promise.all([
-      supabase.from('exams').select('*').eq('id', examId).maybeSingle(),
-      supabase.from('exam_attempts').select('*').eq('exam_id', examId).eq('student_id', user.id).maybeSingle(),
+      neon.from('exams').select('*').eq('id', examId).maybeSingle(),
+      neon.from('exam_attempts').select('*').eq('exam_id', examId).eq('student_id', user.id).maybeSingle(),
     ]);
 
     if (!examRes.data) { router.push('/student/dashboard'); return; }
     setExam(examRes.data);
 
-    const questionsRes = await supabase.from('questions').select('*').eq('exam_id', examId).order('order_index');
+    const questionsRes = await neon.from('questions').select('*').eq('exam_id', examId).order('order_index');
     setQuestions(questionsRes.data || []);
 
     if (attemptRes.data) {
       setAttempt(attemptRes.data);
       if (attemptRes.data.is_graded || attemptRes.data.submitted_at) {
-        const answersRes = await supabase.from('student_answers').select('*').eq('attempt_id', attemptRes.data.id);
+        const answersRes = await neon.from('student_answers').select('*').eq('attempt_id', attemptRes.data.id);
         const ansMap: Record<string, StudentAnswer> = {};
         (answersRes.data || []).forEach((a) => { ansMap[a.question_id] = a; });
         setSavedAnswers(ansMap);
         setPhase('review');
       } else {
-        const answersRes = await supabase.from('student_answers').select('*').eq('attempt_id', attemptRes.data.id);
+        const answersRes = await neon.from('student_answers').select('*').eq('attempt_id', attemptRes.data.id);
         const selMap: Record<string, McqOptionLetter> = {};
         (answersRes.data || []).forEach((a) => {
           if (a.selected_option) selMap[a.question_id] = a.selected_option as McqOptionLetter;
@@ -82,7 +82,7 @@ export default function StudentExamPage() {
     if (exam.start_time && new Date(exam.start_time) > now) { alert('This exam is not open yet.'); return; }
     if (exam.end_time && new Date(exam.end_time) < now) { alert('This exam has closed.'); return; }
     setStarting(true);
-    const { data, error } = await supabase.from('exam_attempts').insert({
+    const { data, error } = await neon.from('exam_attempts').insert({
       exam_id: examId,
       student_id: user.id,
       started_at: new Date().toISOString(),
@@ -96,7 +96,7 @@ export default function StudentExamPage() {
   const saveAnswer = useCallback(async (questionId: string, option: McqOptionLetter) => {
     if (!attempt) return;
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
-    await supabase.from('student_answers').upsert({
+    await neon.from('student_answers').upsert({
       attempt_id: attempt.id,
       question_id: questionId,
       selected_option: option,
@@ -109,7 +109,7 @@ export default function StudentExamPage() {
     setSubmitting(true);
     setShowSubmitConfirm(false);
 
-    const answersRes = await supabase.from('student_answers').select('*').eq('attempt_id', attempt.id);
+    const answersRes = await neon.from('student_answers').select('*').eq('attempt_id', attempt.id);
     const currentAnswers = answersRes.data || [];
 
     let score = 0;
@@ -128,8 +128,8 @@ export default function StudentExamPage() {
       };
     });
 
-    await supabase.from('student_answers').upsert(updates, { onConflict: 'attempt_id,question_id' });
-    await supabase.from('exam_attempts').update({
+    await neon.from('student_answers').upsert(updates, { onConflict: 'attempt_id,question_id' });
+    await neon.from('exam_attempts').update({
       submitted_at: new Date().toISOString(),
       score,
       total_points: totalPoints,
