@@ -46,6 +46,7 @@ export function isImageUrl(str?: string | null): boolean {
     s.startsWith('http://') ||
     s.startsWith('https://') ||
     s.startsWith('/uploads/') ||
+    s.startsWith('/api/files/') ||
     s.startsWith('data:image/') ||
     /\.(png|jpe?g|webp|gif|svg)$/i.test(s)
   );

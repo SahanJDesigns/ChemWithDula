@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import JSZip from 'jszip';
 import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth-server';
+import { saveFileToNeon } from '@/lib/file-storage';
 
 const ANSWER_MAP: Record<string, 'a' | 'b' | 'c' | 'd' | 'e'> = {
   '1': 'a',
@@ -160,13 +159,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Failed to obtain exam ID.' }, { status: 500 });
     }
 
-    // Prepare upload directory
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'exams', examId);
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    // Extract each image and write to disk
+    // Extract each image and save directly into Neon PostgreSQL
     const questionsToInsert: Array<{
       exam_id: string;
       question_text: string;
@@ -187,12 +180,13 @@ export async function POST(req: Request) {
       const item = matchedItems[i];
       const imageBuffer = await item.entry.async('nodebuffer');
 
-      // Unique file name to prevent collision
-      const safeFilename = `q${item.qNum}_${Date.now()}_${i}.${item.extension}`;
-      const destPath = path.join(uploadsDir, safeFilename);
-      fs.writeFileSync(destPath, imageBuffer);
+      // Save directly to Neon database
+      const saved = await saveFileToNeon({
+        fileName: `q${item.qNum}_${i}.${item.extension}`,
+        buffer: imageBuffer,
+      });
 
-      const publicUrl = `/uploads/exams/${examId}/${safeFilename}`;
+      const publicUrl = saved.url;
       const finalAnswer = customAnswers[item.qNum] || item.detectedAnswer;
 
       questionsToInsert.push({

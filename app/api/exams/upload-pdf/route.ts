@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth-server';
 import { McqOptionLetter } from '@/lib/mcq-options';
+import { saveFileToNeon } from '@/lib/file-storage';
 
 const VALID_LETTERS: McqOptionLetter[] = ['a', 'b', 'c', 'd', 'e'];
 
@@ -82,19 +81,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing exam ID.' }, { status: 500 });
     }
 
-    // If PDF file was provided, save to public/uploads/exams/<examId>/paper.pdf
+    // If PDF file was provided, save directly to Neon PostgreSQL
     let pdfUrl: string | null = null;
     if (pdfFile && pdfFile.size > 0) {
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'exams', examId);
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-
       const buffer = Buffer.from(await pdfFile.arrayBuffer());
-      const pdfFilePath = path.join(uploadsDir, 'paper.pdf');
-      fs.writeFileSync(pdfFilePath, buffer);
+      const saved = await saveFileToNeon({
+        fileName: pdfFile.name || 'exam_paper.pdf',
+        mimeType: 'application/pdf',
+        buffer,
+      });
 
-      pdfUrl = `/uploads/exams/${examId}/paper.pdf?v=${Date.now()}`;
+      pdfUrl = saved.url;
       await sql`UPDATE exams SET pdf_url = ${pdfUrl} WHERE id = ${examId};`;
     }
 
