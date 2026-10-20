@@ -19,7 +19,9 @@ class QueryBuilder<T = any[]> implements PromiseLike<{ data: T | null; error: an
   }
 
   select(cols: string = '*'): QueryBuilder<any[]> {
-    this.action = 'select';
+    if (!['insert', 'update', 'delete', 'upsert'].includes(this.action)) {
+      this.action = 'select';
+    }
     this.selectCols = cols;
     return this as any;
   }
@@ -97,24 +99,32 @@ class QueryBuilder<T = any[]> implements PromiseLike<{ data: T | null; error: an
 
       const json = await res.json();
       if (!res.ok || json.error) {
-        return { data: null, error: json.error || new Error('Request failed') };
+        const errorMsg =
+          typeof json.error === 'string'
+            ? json.error
+            : json.error?.message || `Request failed with status ${res.status}`;
+        return { data: null, error: new Error(errorMsg) };
       }
 
       let data = json.data;
-      if (this.action === 'select') {
-        if (this.expectSingle) {
-          if (!Array.isArray(data) || data.length === 0) {
+      if (this.expectSingle) {
+        if (Array.isArray(data)) {
+          if (data.length === 0) {
             return { data: null, error: new Error('Record not found') };
           }
           data = data[0];
-        } else if (this.expectMaybeSingle) {
-          data = Array.isArray(data) && data.length > 0 ? data[0] : null;
+        } else if (!data) {
+          return { data: null, error: new Error('Record not found') };
+        }
+      } else if (this.expectMaybeSingle) {
+        if (Array.isArray(data)) {
+          data = data.length > 0 ? data[0] : null;
         }
       }
 
       return { data, error: null };
     } catch (err: unknown) {
-      return { data: null, error: err };
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
     }
   }
 

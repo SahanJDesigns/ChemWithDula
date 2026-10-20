@@ -6,9 +6,8 @@ import Link from 'next/link';
 import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam } from '@/lib/types';
-import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Plus, BookOpen, Users, Clock, CircleCheck as CheckCircle2, Eye, EyeOff, ChartBar as BarChart3, Trash2, FileText } from 'lucide-react';
+import { Plus, BookOpen, Eye, EyeOff, Trash2 } from 'lucide-react';
 
 export default function TeacherDashboard() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -16,33 +15,32 @@ export default function TeacherDashboard() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
- 
 
   useEffect(() => {
-     
-  const fetchExams = async () => {
-    if (!user) return;
-    const { data } = await neon
-      .from('exams')
-      .select('*, questions(count)')
-      .eq('teacher_id', user.id)
-      .order('created_at', { ascending: false });
-    setExams(data || []);
+    const fetchExams = async () => {
+      if (!user) return;
+      const { data } = await neon
+        .from('exams')
+        .select('*, questions(count)')
+        .eq('teacher_id', user.id)
+        .order('created_at', { ascending: false });
+      setExams(data || []);
 
-    if (data && data.length > 0) {
-      const ids = data.map((e) => e.id);
-      const { data: attempts } = await neon
-        .from('exam_attempts')
-        .select('exam_id')
-        .in('exam_id', ids);
-      const counts: Record<string, number> = {};
-      (attempts || []).forEach((a) => {
-        counts[a.exam_id] = (counts[a.exam_id] || 0) + 1;
-      });
-      setAttemptCounts(counts);
-    }
-    setLoading(false);
-  };
+      if (data && data.length > 0) {
+        const ids = data.map((e) => e.id);
+        const { data: attempts } = await neon
+          .from('exam_attempts')
+          .select('exam_id')
+          .in('exam_id', ids);
+        const counts: Record<string, number> = {};
+        (attempts || []).forEach((a) => {
+          counts[a.exam_id] = (counts[a.exam_id] || 0) + 1;
+        });
+        setAttemptCounts(counts);
+      }
+      setLoading(false);
+    };
+
     if (!authLoading) {
       if (!user) { router.push('/'); return; }
       if (profile && profile.role !== 'teacher') { router.push('/student/dashboard'); return; }
@@ -50,8 +48,6 @@ export default function TeacherDashboard() {
     }
   }, [user, profile, authLoading, router]);
 
-
-  console.log(user, profile);
   const togglePublish = async (exam: Exam) => {
     await neon.from('exams').update({ is_published: !exam.is_published }).eq('id', exam.id);
     setExams((prev) => prev.map((e) => e.id === exam.id ? { ...e, is_published: !e.is_published } : e));
@@ -71,24 +67,36 @@ export default function TeacherDashboard() {
     );
   }
 
-  const published = exams.filter((e) => e.is_published).length;
-  const totalStudents = Object.values(attemptCounts).reduce((a, b) => a + b, 0);
-
-
   return (
-      <div className="p-4 sm:p-6 lg:p-8">
-        {/* Exams list */}
-        {exams.length === 0 ? (
-          <div className="border-slate-300 bg-white p-16 text-center">
-            <BookOpen className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-700 mb-2">No exams yet</h3>
-            <p className="text-slate-500 mb-6">Create your first exam to get started.</p>
-            <Button asChild >
-              <Link href="/teacher/exams/new"><Plus className="h-4 w-4 mr-2" />Create Exam</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="border border-slate-200 bg-white  overflow-hidden">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Exams</h1>
+          <p className="text-sm text-slate-500 mt-1">Create, manage, and publish MCQ exams for students.</p>
+        </div>
+        <Button asChild className="shrink-0">
+          <Link href="/teacher/exams/new">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Exam
+          </Link>
+        </Button>
+      </div>
+
+      {exams.length === 0 ? (
+        <div className="border border-dashed border-slate-200 rounded-xl bg-white p-16 text-center">
+          <BookOpen className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-700 mb-2">No exams yet</h3>
+          <p className="text-slate-500 mb-6">Create your first exam to get started.</p>
+          <Button asChild>
+            <Link href="/teacher/exams/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Exam
+            </Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="border border-slate-200 bg-white rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
@@ -151,7 +159,8 @@ export default function TeacherDashboard() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
   );
 }

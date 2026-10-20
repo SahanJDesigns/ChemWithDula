@@ -22,6 +22,8 @@ export interface Exam {
   start_time: string | null;
   end_time: string | null;
   is_published: boolean;
+  pdf_url?: string | null;
+  option_count?: number;
   created_at: string;
   profiles?: Profile;
   questions?: Question[];
