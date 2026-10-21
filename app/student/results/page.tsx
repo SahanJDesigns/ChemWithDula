@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { BarChart3, Clock, Loader2, Lock } from 'lucide-react';
+import { BarChart3, Clock, Loader2, Lock, CheckCircle2, FileText } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 
 interface AttemptRow {
@@ -133,13 +133,34 @@ export default function StudentResultsPage() {
                       })
                     : '—';
 
+                  const isPaperLocked = Boolean(
+                    attempt.exams?.end_time && new Date(attempt.exams.end_time) > new Date()
+                  );
+
                   return (
                     <div key={attempt.id} className="p-4 space-y-3">
                       {/* Title + status badge */}
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-sm font-medium text-foreground leading-snug">
-                          {attempt.exams?.title ?? 'Untitled Exam'}
-                        </span>
+                        <div>
+                          <span className="text-sm font-medium text-foreground leading-snug block">
+                            {attempt.exams?.title ?? 'Untitled Exam'}
+                          </span>
+                          {attempt.is_graded && (
+                            <div className="mt-1">
+                              {isPaperLocked ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                                  <Lock className="h-3 w-3" />
+                                  Paper preview locked until deadline
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Paper preview unlocked
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         <span
                           className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
                             attempt.is_graded
@@ -184,10 +205,20 @@ export default function StudentResultsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 px-0 text-primary hover:bg-transparent hover:underline"
+                            className="h-8 px-0 text-primary hover:bg-transparent hover:underline flex items-center gap-1.5"
                             onClick={() => router.push(`/student/exams/${attempt.exam_id}`)}
                           >
-                            View details →
+                            {isPaperLocked ? (
+                              <>
+                                <Lock className="h-3.5 w-3.5" />
+                                View Result (Paper locked) →
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="h-3.5 w-3.5" />
+                                View Paper & Results →
+                              </>
+                            )}
                           </Button>
                         </div>
                       )}
@@ -223,11 +254,29 @@ export default function StudentResultsPage() {
                             day: 'numeric', month: 'short', year: 'numeric',
                           })
                         : '—';
+                      const isPaperLocked = Boolean(
+                        attempt.exams?.end_time && new Date(attempt.exams.end_time) > new Date()
+                      );
 
                       return (
                         <tr key={attempt.id} className="transition-colors hover:bg-muted/40">
                           <td className="px-4 py-3 text-sm font-medium text-foreground">
-                            {attempt.exams?.title ?? 'Untitled Exam'}
+                            <div>{attempt.exams?.title ?? 'Untitled Exam'}</div>
+                            {attempt.is_graded && (
+                              <div className="mt-0.5">
+                                {isPaperLocked ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                    <Lock className="h-2.5 w-2.5" />
+                                    Paper locked until deadline
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                    <CheckCircle2 className="h-2.5 w-2.5" />
+                                    Paper unlocked
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-sm text-foreground/90">{submittedAt}</td>
                           <td className="px-4 py-3 text-center">
@@ -271,7 +320,17 @@ export default function StudentResultsPage() {
                                 className="h-8 text-primary hover:bg-primary/10"
                                 onClick={() => router.push(`/student/exams/${attempt.exam_id}`)}
                               >
-                                View details
+                                {isPaperLocked ? (
+                                  <>
+                                    <Lock className="h-3.5 w-3.5 mr-1" />
+                                    View Result
+                                  </>
+                                ) : (
+                                  <>
+                                    <FileText className="h-3.5 w-3.5 mr-1" />
+                                    View Paper
+                                  </>
+                                )}
                               </Button>
                             )}
                           </td>

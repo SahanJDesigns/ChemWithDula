@@ -19,6 +19,7 @@ import {
   Sparkles,
   Timer,
   Trophy,
+  Lock,
 } from 'lucide-react';
 
 interface ExamWithAttempt extends Exam {
@@ -298,6 +299,12 @@ export default function StudentMyExamsPage() {
                                 }}
                               />
                             </div>
+                            {exam.end_time && new Date(exam.end_time) > new Date() && (
+                              <div className="mt-2 pt-2 border-t border-emerald-200/50 flex items-center gap-1.5 text-[11px] font-medium text-amber-800">
+                                <Lock className="h-3 w-3 shrink-0" />
+                                <span>Paper preview unlocks after deadline</span>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -324,8 +331,17 @@ export default function StudentMyExamsPage() {
                                 )}
                                 {isCompleted && (
                                   <>
-                                    <Trophy className="mr-2 h-4 w-4" />
-                                    View result
+                                    {exam.end_time && new Date(exam.end_time) > new Date() ? (
+                                      <>
+                                        <Lock className="mr-2 h-4 w-4" />
+                                        View result
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Trophy className="mr-2 h-4 w-4" />
+                                        View paper & result
+                                      </>
+                                    )}
                                   </>
                                 )}
                               </Link>

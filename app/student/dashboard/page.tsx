@@ -9,7 +9,7 @@ import { Exam, ExamAttempt } from '@/lib/types';
 import { getStudentExamStatus } from '@/lib/student-exam-status';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Clock, CircleCheck as CheckCircle2, CirclePlay as PlayCircle, Trophy, FileText, LayoutGrid } from 'lucide-react';
+import { Clock, CircleCheck as CheckCircle2, CirclePlay as PlayCircle, Trophy, FileText, LayoutGrid, Lock } from 'lucide-react';
 
 interface ExamWithAttempt extends Exam {
   attempt?: ExamAttempt;
@@ -161,6 +161,12 @@ export default function StudentDashboard() {
                           style={{ width: `${Math.round(((exam.attempt.score || 0) / (exam.attempt.total_points || 1)) * 100)}%` }}
                         />
                       </div>
+                      {exam.end_time && new Date(exam.end_time) > new Date() && (
+                        <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">
+                          <Lock className="h-3 w-3 shrink-0" />
+                          <span>Paper locked until deadline</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -170,7 +176,13 @@ export default function StudentDashboard() {
                         <Link href={`/student/exams/${exam.id}`}>
                           {canStart && <><PlayCircle className="h-3.5 w-3.5 mr-1.5" />Start</>}
                           {canContinue && <><Clock className="h-3.5 w-3.5 mr-1.5" />Continue</>}
-                          {isCompleted && <><CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />View</>}
+                          {isCompleted && (
+                            exam.end_time && new Date(exam.end_time) > new Date() ? (
+                              <><Lock className="h-3.5 w-3.5 mr-1.5" />View Result</>
+                            ) : (
+                              <><CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />View Paper</>
+                            )
+                          )}
                         </Link>
                       </Button>
                     )}

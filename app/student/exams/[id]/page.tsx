@@ -33,10 +33,36 @@ import {
   Layers,
   X,
   ChevronUp,
+  Lock,
+  Unlock,
+  ShieldCheck,
+  Calendar,
+  ArrowRight,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
+import ExamSecurityGuard from '@/components/ExamSecurityGuard';
 
 type Phase = 'loading' | 'preview' | 'active' | 'review';
+
+function formatDeadlineCountdown(deadline: Date, now: Date): { text: string; isPassed: boolean } {
+  const diffMs = deadline.getTime() - now.getTime();
+  if (diffMs <= 0) {
+    return { text: 'Deadline has passed', isPassed: true };
+  }
+  const totalSecs = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSecs / 86400);
+  const hours = Math.floor((totalSecs % 86400) / 3600);
+  const minutes = Math.floor((totalSecs % 3600) / 60);
+  const seconds = totalSecs % 60;
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0 || days > 0) parts.push(`${hours}h`);
+  parts.push(`${minutes}m`);
+  parts.push(`${seconds}s`);
+
+  return { text: parts.join(' '), isPassed: false };
+}
 
 export default function StudentExamPage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -44,6 +70,7 @@ export default function StudentExamPage() {
   const params = useParams();
   const examId = params.id as string;
 
+  const [now, setNow] = useState<Date>(() => new Date());
   const [phase, setPhase] = useState<Phase>('loading');
   const [exam, setExam] = useState<(Exam & { pdf_url?: string | null; option_count?: number }) | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -57,6 +84,13 @@ export default function StudentExamPage() {
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [reviewMode, setReviewMode] = useState<'split' | 'cards'>('split');
   const submitRef = useRef(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -258,7 +292,6 @@ export default function StudentExamPage() {
   /* PREVIEW SCREEN                                                            */
   /* ───────────────────────────────────────────────────────────────────────── */
   if (phase === 'preview') {
-    const now = new Date();
     const isBeforeStart = exam.start_time && new Date(exam.start_time) > now;
     const isAfterEnd = exam.end_time && new Date(exam.end_time) < now;
     const isPdfExam = Boolean(exam.pdf_url);
@@ -366,6 +399,10 @@ export default function StudentExamPage() {
     const isPdfExam = Boolean(exam.pdf_url);
     const optionCount = exam.option_count || 5;
 
+    const deadlineDate = exam.end_time ? new Date(exam.end_time) : null;
+    const isDeadlinePassed = !deadlineDate || now.getTime() >= deadlineDate.getTime();
+    const countdown = deadlineDate ? formatDeadlineCountdown(deadlineDate, now) : null;
+
     return (
       <DashboardLayout role="student">
         <div className="min-h-[calc(100vh-4rem)] bg-slate-50 py-6 px-4 sm:px-6">
@@ -374,6 +411,17 @@ export default function StudentExamPage() {
             <div className="rounded-2xl border border-slate-200 bg-white shadow-xs p-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Exam Completed
+                    </span>
+                    {!isDeadlinePassed && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                        <Lock className="h-3 w-3" />
+                        Paper Preview Locked
+                      </span>
+                    )}
+                  </div>
                   <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{exam.title}</h1>
                   <p className="text-xs text-slate-500 mt-1">
                     Submitted: {attempt.submitted_at ? new Date(attempt.submitted_at).toLocaleString() : '—'}
@@ -403,131 +451,216 @@ export default function StudentExamPage() {
               </div>
             </div>
 
-            {/* If PDF Exam, render split screen or toggle */}
-            {isPdfExam ? (
-              <div className="flex flex-col lg:flex-row gap-6 items-start">
-                {/* Left: Protected PDF Reader */}
-                <div className="w-full lg:flex-1 min-w-0">
-                  <NonDownloadablePdfViewer
-                    pdfUrl={exam.pdf_url!}
-                    title={exam.title}
-                    className="h-[650px] lg:h-[750px]"
-                  />
+            {!isDeadlinePassed ? (
+              /* LOCKED PAPER & SOLUTIONS NOTICE */
+              <div className="rounded-2xl border border-amber-200/90 bg-gradient-to-b from-amber-50/70 via-white to-slate-50 p-6 sm:p-10 shadow-xs text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 border border-amber-200 text-amber-700 shadow-xs mb-5">
+                  <Lock className="h-8 w-8" />
                 </div>
 
-                {/* Right: Bubble Answer Sheet with Results */}
-                <div className="w-full lg:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-                  <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">Answer Key & Results</h3>
-                      <p className="text-[11px] text-slate-500">
-                        Green = Correct &bull; Red = Incorrect &bull; Circle = Correct Answer
-                      </p>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 text-amber-900 text-xs font-semibold mb-3 border border-amber-200">
+                  <ShieldCheck className="h-3.5 w-3.5 text-amber-700" />
+                  <span>Paper Preview Locked Until Deadline</span>
+                </div>
+
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+                  ප්‍රශ්න පත්‍රය සහ පිළිතුරු විභාග අවසාන දිනයෙන් පසු ප්‍රදර්ශනය කෙරේ
+                </h2>
+                <p className="text-sm font-semibold text-slate-700 mb-1">
+                  Question paper preview & detailed solutions will unlock after the deadline
+                </p>
+                <p className="max-w-2xl mx-auto text-xs text-slate-500 leading-relaxed mb-6">
+                  ඔබගේ ලකුණු (Score: {attempt.score} / {attempt.total_points}) ඉහත සටහන් කර ඇත. විභාගයේ රහස්‍යභාවය හා සාධාරණත්වය ආරක්ෂා කිරීම සඳහා, සම්පූර්ණ ප්‍රශ්න පත්‍රය සහ නිවැරදි පිළිතුරු දැකබලා ගැනීම අවසාන දිනය තෙක් අත්හිටුවා ඇත.
+                </p>
+
+                {/* Deadline & Countdown cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto mb-8 text-left">
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <span>Submission Deadline</span>
                     </div>
-                    <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                      {attempt.score}/{attempt.total_points}
-                    </span>
+                    <p className="text-sm font-bold text-slate-800">
+                      {deadlineDate?.toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                    </p>
                   </div>
-                  <div className="max-h-[680px] overflow-y-auto">
-                    <BubbleAnswerSheet
-                      questions={questions}
-                      answers={answers}
-                      optionCount={optionCount}
-                      showResults={true}
-                      disabled={true}
-                    />
+
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 shadow-xs">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 mb-1">
+                      <Clock className="h-4 w-4 text-amber-600" />
+                      <span>Time Remaining</span>
+                    </div>
+                    <p className="text-base font-black text-amber-900 tracking-wide font-mono">
+                      {countdown?.text || 'Soon'}
+                    </p>
                   </div>
+                </div>
+
+                {/* Navigation actions */}
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push('/student/dashboard')}
+                    className="h-10 text-xs sm:text-sm font-semibold"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-1.5" />
+                    Back to My Exams
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => router.push('/student/results')}
+                    className="h-10 text-xs sm:text-sm font-semibold bg-primary hover:bg-primary/90"
+                  >
+                    View All Results
+                    <ArrowRight className="h-4 w-4 ml-1.5" />
+                  </Button>
                 </div>
               </div>
             ) : (
-              /* Non-PDF Question Cards Review */
-              <div className="space-y-4">
-                {questions.map((q, idx) => {
-                  const ans = savedAnswers[q.id];
-                  const isCorrect = ans?.is_correct;
-                  const selected = ans?.selected_option;
-                  return (
-                    <div
-                      key={q.id}
-                      className={`rounded-xl border p-5 ${
-                        isCorrect
-                          ? 'border-emerald-200 bg-emerald-50/30'
-                          : 'border-red-200 bg-red-50/30'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3 mb-3">
-                        {isCorrect ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                            Question {idx + 1} &bull; {q.points} pt{q.points !== 1 ? 's' : ''}
+              /* UNLOCKED FULL PAPER PREVIEW */
+              <>
+                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-xl">
+                  <div className="flex items-center gap-2 text-emerald-900">
+                    <Unlock className="h-4 w-4 text-emerald-600" />
+                    <span className="text-xs sm:text-sm font-semibold">
+                      Exam Deadline Passed — Full Paper & Solution Preview Unlocked
+                    </span>
+                  </div>
+                  <span className="text-xs text-emerald-700 hidden sm:inline">
+                    {deadlineDate ? `Closed on ${deadlineDate.toLocaleDateString()}` : 'Available'}
+                  </span>
+                </div>
+
+                {/* If PDF Exam, render split screen or toggle */}
+                {isPdfExam ? (
+                  <div className="flex flex-col lg:flex-row gap-6 items-start">
+                    {/* Left: Protected PDF Reader */}
+                    <div className="w-full lg:flex-1 min-w-0">
+                      <NonDownloadablePdfViewer
+                        pdfUrl={exam.pdf_url!}
+                        title={exam.title}
+                        className="h-[650px] lg:h-[750px]"
+                      />
+                    </div>
+
+                    {/* Right: Bubble Answer Sheet with Results */}
+                    <div className="w-full lg:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+                      <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900">Answer Key & Results</h3>
+                          <p className="text-[11px] text-slate-500">
+                            Green = Correct &bull; Red = Incorrect &bull; Circle = Correct Answer
                           </p>
-                          {q.image_url && (
-                            <Image
-                              src={q.image_url}
-                              alt="Question"
-                              width={0}
-                              height={140}
-                              className="rounded-lg border border-slate-200 mb-3 w-full h-auto object-contain"
-                            />
-                          )}
-                          {q.question_text && (
-                            <p className="text-sm font-medium text-slate-800 mb-3">
-                              {q.question_text}
-                            </p>
-                          )}
-                          <div className="space-y-1.5">
-                            {MCQ_OPTION_VALUES.map((opt, i) => {
-                              const optKey = MCQ_OPTION_KEYS[i];
-                              const optImg = getOptionImageUrl(q, opt);
-                              const isCorrectOpt = q.correct_option === opt;
-                              const isSelectedOpt = selected === opt;
-                              return (
-                                <div
-                                  key={opt}
-                                  className={`flex items-start justify-between gap-3 rounded-xl p-3 text-sm border ${
-                                    isCorrectOpt && isSelectedOpt
-                                      ? 'bg-emerald-100/80 border-emerald-300 text-emerald-900 font-medium'
-                                      : isCorrectOpt
-                                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-medium'
-                                        : isSelectedOpt
-                                          ? 'bg-red-100/80 border-red-300 text-red-800'
-                                          : 'bg-white border-slate-200 text-slate-600'
-                                  }`}
-                                >
-                                  <OptionDisplay
-                                    letter={opt}
-                                    text={q[optKey]}
-                                    imageUrl={optImg}
-                                    className="flex-1"
-                                  />
-                                  <div className="shrink-0 flex items-center gap-1.5 mt-0.5">
-                                    {isCorrectOpt && (
-                                      <span className="text-xs font-bold text-emerald-600">Correct</span>
-                                    )}
-                                    {isSelectedOpt && !isCorrectOpt && (
-                                      <span className="text-xs font-bold text-red-500">Your choice</span>
-                                    )}
-                                    {isCorrectOpt && (
-                                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                    )}
-                                    {isSelectedOpt && !isCorrectOpt && (
-                                      <XCircle className="h-4 w-4 text-red-500" />
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
                         </div>
+                        <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                          {attempt.score}/{attempt.total_points}
+                        </span>
+                      </div>
+                      <div className="max-h-[680px] overflow-y-auto">
+                        <BubbleAnswerSheet
+                          questions={questions}
+                          answers={answers}
+                          optionCount={optionCount}
+                          showResults={true}
+                          disabled={true}
+                        />
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                ) : (
+                  /* Non-PDF Question Cards Review */
+                  <div className="space-y-4">
+                    {questions.map((q, idx) => {
+                      const ans = savedAnswers[q.id];
+                      const isCorrect = ans?.is_correct;
+                      const selected = ans?.selected_option;
+                      return (
+                        <div
+                          key={q.id}
+                          className={`rounded-xl border p-5 ${
+                            isCorrect
+                              ? 'border-emerald-200 bg-emerald-50/30'
+                              : 'border-red-200 bg-red-50/30'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 mb-3">
+                            {isCorrect ? (
+                              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                                Question {idx + 1} &bull; {q.points} pt{q.points !== 1 ? 's' : ''}
+                              </p>
+                              {q.image_url && (
+                                <Image
+                                  src={q.image_url}
+                                  alt="Question"
+                                  width={0}
+                                  height={140}
+                                  className="rounded-lg border border-slate-200 mb-3 w-full h-auto object-contain"
+                                />
+                              )}
+                              {q.question_text && (
+                                <p className="text-sm font-medium text-slate-800 mb-3">
+                                  {q.question_text}
+                                </p>
+                              )}
+                              <div className="space-y-1.5">
+                                {MCQ_OPTION_VALUES.map((opt, i) => {
+                                  const optKey = MCQ_OPTION_KEYS[i];
+                                  const optImg = getOptionImageUrl(q, opt);
+                                  const isCorrectOpt = q.correct_option === opt;
+                                  const isSelectedOpt = selected === opt;
+                                  return (
+                                    <div
+                                      key={opt}
+                                      className={`flex items-start justify-between gap-3 rounded-xl p-3 text-sm border ${
+                                        isCorrectOpt && isSelectedOpt
+                                          ? 'bg-emerald-100/80 border-emerald-300 text-emerald-900 font-medium'
+                                          : isCorrectOpt
+                                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-medium'
+                                            : isSelectedOpt
+                                              ? 'bg-red-100/80 border-red-300 text-red-800'
+                                              : 'bg-white border-slate-200 text-slate-600'
+                                      }`}
+                                    >
+                                      <OptionDisplay
+                                        letter={opt}
+                                        text={q[optKey]}
+                                        imageUrl={optImg}
+                                        className="flex-1"
+                                      />
+                                      <div className="shrink-0 flex items-center gap-1.5 mt-0.5">
+                                        {isCorrectOpt && (
+                                          <span className="text-xs font-bold text-emerald-600">Correct</span>
+                                        )}
+                                        {isSelectedOpt && !isCorrectOpt && (
+                                          <span className="text-xs font-bold text-red-500">Your choice</span>
+                                        )}
+                                        {isCorrectOpt && (
+                                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                        )}
+                                        {isSelectedOpt && !isCorrectOpt && (
+                                          <XCircle className="h-4 w-4 text-red-500" />
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -547,7 +680,13 @@ export default function StudentExamPage() {
     /* ── SCENARIO A: FULL PDF EXAM PAPER + RIGHT BUBBLE SHEET ── */
     if (isPdfExam) {
       return (
-        <div className="bg-slate-900 min-h-screen flex flex-col">
+        <ExamSecurityGuard
+          isActive={true}
+          studentName={profile?.full_name || user?.email?.split('@')[0] || 'Student'}
+          studentEmail={user?.email || ''}
+          examTitle={exam.title}
+        >
+          <div className="bg-slate-900 min-h-screen flex flex-col">
           {/* Top Exam Header */}
           <div className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white shadow-md">
             <div className="mx-auto max-w-7xl px-3 sm:px-6 flex items-center justify-between h-14 gap-3">
@@ -761,12 +900,19 @@ export default function StudentExamPage() {
             </div>
           )}
         </div>
-      );
-    }
+      </ExamSecurityGuard>
+    );
+  }
 
     /* ── SCENARIO B: TRADITIONAL QUESTION CARDS (BACKWARD COMPATIBLE) ── */
     return (
-      <div className="bg-slate-50 min-h-screen">
+      <ExamSecurityGuard
+        isActive={true}
+        studentName={profile?.full_name || user?.email?.split('@')[0] || 'Student'}
+        studentEmail={user?.email || ''}
+        examTitle={exam.title}
+      >
+        <div className="bg-slate-50 min-h-screen">
         {/* Exam header bar */}
         <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 flex items-center justify-between h-14 gap-4">
@@ -951,8 +1097,9 @@ export default function StudentExamPage() {
           </div>
         )}
       </div>
-    );
-  }
+    </ExamSecurityGuard>
+  );
+}
 
   return null;
 }
