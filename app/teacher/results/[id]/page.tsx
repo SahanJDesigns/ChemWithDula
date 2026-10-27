@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import {
   ArrowLeft,
   CircleCheck as CheckCircle2,
-  Circle as XCircle,
+  CircleX as XCircle,
   Loader2,
   Printer,
   FileText,
@@ -110,7 +110,7 @@ export default function TeacherAttemptDetailPage() {
     setViewMode(mode);
     setTimeout(() => {
       window.print();
-    }, 100);
+    }, 250);
   };
 
   if (authLoading || loading) {
@@ -131,8 +131,8 @@ export default function TeacherAttemptDetailPage() {
   const letters: McqOptionLetter[] = MCQ_OPTION_VALUES.slice(0, optionCount);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 print:bg-white print:p-0">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 print:max-w-none print:px-2 print:py-0">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 print:bg-white print:p-0 print:min-h-0 print:h-auto print:overflow-visible">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 print:max-w-none print:px-2 print:py-0 print:h-auto print:overflow-visible">
         {/* ── Top Header / Actions Bar (Hidden during print) ── */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
           <div>
@@ -194,26 +194,22 @@ export default function TeacherAttemptDetailPage() {
         {/* ── Printable Header (Shown in Print & on Screen) ── */}
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6 print:border-none print:shadow-none print:p-0 print:mb-3">
           {/* Print only brand title */}
-          <div className="hidden print:block border-b-2 border-slate-800 pb-2 mb-3">
+          <div className="hidden print:block border-b-2 border-slate-900 pb-2.5 mb-3">
             <div className="flex justify-between items-baseline">
               <div>
-                <h1 className="text-lg font-black uppercase tracking-wider text-slate-900">
-                  ChemWithDula &bull; Examination Report
+                <h1 className="text-2xl print:text-[32px] print-brand-title font-black uppercase tracking-wider text-slate-900 leading-tight">
+                  Dulanjana Jayamaha
                 </h1>
-                <span className="text-xs font-semibold text-slate-600">
-                  Mode: {viewMode === 'compact' ? 'OMR Answer Sheet (Compact)' : 'Detailed Question Review (OMR Structure)'}
+                <span className="text-xs font-semibold text-slate-700 print:text-[11px]">
+                  Chemistry with Dulanjana Jayamaha &bull; A Level Chemistry
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500 font-medium">
-                Printed: {new Date().toLocaleDateString()}
-              </span>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Exam Title</span>
                 {attempt.exams?.pdf_url && (
                   <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
                     PDF Paper
@@ -231,13 +227,6 @@ export default function TeacherAttemptDetailPage() {
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Score</p>
                 <p className="text-xl sm:text-2xl font-black text-slate-900">
                   {attempt.is_graded ? `${attempt.score} / ${attempt.total_points}` : '—'}
-                </p>
-              </div>
-
-              <div className="text-center pr-3 border-r border-slate-200">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Grade</p>
-                <p className={`text-xl sm:text-2xl font-black ${grade?.color || 'text-slate-800'}`}>
-                  {grade?.label || '—'} <span className="text-xs font-normal text-slate-500">({pct}%)</span>
                 </p>
               </div>
 
@@ -294,15 +283,15 @@ export default function TeacherAttemptDetailPage() {
         </div>
 
         {/* ─────────────────────────────────────────────────────────────────── */}
-        {/* VIEW 1: COMPACT OMR SHEET (1-PAGE FIT, MINIMUM SPACE)                */}
+        {/* VIEW 1: COMPACT OMR SHEET (SINGLE COLUMN IN PRINT)                  */}
         {/* ─────────────────────────────────────────────────────────────────── */}
         <div
           className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-xs print:border-none print:p-0 ${
             viewMode === 'compact' ? 'block print:block' : 'hidden print:hidden'
           }`}
         >
-          {/* Multi-column grid: 2 columns on desktop and print */}
-          <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-x-6 gap-y-1">
+          {/* Single column when printing, 2 columns on desktop screen */}
+          <div className="grid grid-cols-1 md:grid-cols-2 print:!grid-cols-1 print-single-column gap-x-6 gap-y-1 print:gap-y-1.5">
             {questions.map((q, idx) => {
               const qNum = idx + 1;
               const ans = savedAnswers[q.id];
@@ -314,74 +303,91 @@ export default function TeacherAttemptDetailPage() {
               return (
                 <div
                   key={q.id}
-                  className={`flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg border text-xs transition-colors print:py-1 ${
+                  className={`break-inside-avoid print:break-inside-avoid flex items-center justify-between gap-3 py-2 px-3 rounded-lg border-2 text-xs transition-colors print:py-1.5 ${
                     isCorrect
-                      ? 'border-emerald-200/80 bg-emerald-50/30'
+                      ? 'border-emerald-600 bg-emerald-50/70'
                       : isUnanswered
-                        ? 'border-slate-200 bg-slate-50/50 text-slate-500'
-                        : 'border-red-200/80 bg-red-50/30'
+                        ? 'border-slate-300 bg-slate-50/70 text-slate-700'
+                        : 'border-red-500 bg-red-50/70'
                   }`}
                 >
                   {/* Question Number Badge */}
                   <div className="flex items-center gap-1.5 w-10 shrink-0">
                     <span
-                      className={`flex h-5 w-5 items-center justify-center rounded text-[11px] font-bold ${
+                      className={`flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold border ${
                         isCorrect
-                          ? 'bg-emerald-600 text-white'
+                          ? 'border-emerald-700 bg-emerald-600 text-white'
                           : isUnanswered
-                            ? 'bg-slate-200 text-slate-600'
-                            : 'bg-red-500 text-white'
+                            ? 'border-slate-400 bg-slate-200 text-slate-700'
+                            : 'border-red-700 bg-red-600 text-white'
                       }`}
                     >
                       {qNum < 10 ? `0${qNum}` : qNum}
                     </span>
                   </div>
 
-                  {/* Answer numbers in the SAME ROW (Minimum space) */}
-                  <div className="flex items-center justify-center gap-1.5 flex-1">
+                  {/* Answer numbers in the SAME ROW (High contrast bubbles) */}
+                  <div className="flex items-center justify-center gap-2 flex-1">
                     {letters.map((letter, optIdx) => {
                       const optNum = optIdx + 1;
                       const isStudentChoice = selected === letter;
                       const isCorrectChoice = correctLetter === letter;
 
-                      let style = 'border-slate-200 bg-white text-slate-600';
+                      let style = 'border border-slate-300 bg-white text-slate-700';
 
                       if (isStudentChoice && isCorrectChoice) {
                         style =
-                          'border-emerald-600 bg-emerald-600 text-white font-bold ring-1 ring-emerald-400';
+                          'border-2 border-emerald-700 bg-emerald-600 text-white font-bold shadow-xs';
                       } else if (isStudentChoice && !isCorrectChoice) {
                         style =
-                          'border-red-500 bg-red-500 text-white font-bold line-through';
+                          'border-2 border-red-700 bg-red-600 text-white font-bold';
                       } else if (isCorrectChoice) {
                         style =
-                          'border-emerald-500 bg-emerald-100 text-emerald-800 font-bold ring-2 ring-emerald-500';
+                          'border-2 border-emerald-600 bg-emerald-100 text-emerald-950 font-bold';
                       } else {
-                        style = 'border-slate-200/60 text-slate-400 opacity-60';
+                        style = 'border border-slate-300 bg-white text-slate-400 opacity-60';
                       }
 
                       return (
                         <span
                           key={letter}
                           title={`Choice ${optNum}`}
-                          className={`flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-medium ${style}`}
+                          className={`relative flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${style}`}
                         >
                           {optNum}
+                          {isStudentChoice && !isCorrectChoice && (
+                            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-800 text-[9px] text-white font-black leading-none border border-white">
+                              ✕
+                            </span>
+                          )}
+                          {isStudentChoice && isCorrectChoice && (
+                            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-800 text-[9px] text-white font-black leading-none border border-white">
+                              ✓
+                            </span>
+                          )}
                         </span>
                       );
                     })}
                   </div>
 
                   {/* Result indicator in same row */}
-                  <div className="flex items-center justify-end gap-1 w-14 shrink-0 text-right">
+                  <div className="flex items-center justify-end gap-1.5 shrink-0 text-right">
                     {isCorrect ? (
-                      <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-0.5">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> +{q.points || 1}
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-100 border border-emerald-600 text-emerald-950 text-xs font-bold">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-700 stroke-[2.5]" />
+                        <span>+{q.points || 1} pt</span>
                       </span>
                     ) : isUnanswered ? (
-                      <span className="text-[10px] text-slate-400 italic">Omit</span>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold">
+                        <span>Omit (0 pt) &bull; Key: {MCQ_OPTION_LABELS[correctLetter] || correctLetter}</span>
+                      </span>
                     ) : (
-                      <span className="text-[11px] font-bold text-red-600 flex items-center gap-0.5">
-                        <XCircle className="h-3.5 w-3.5" /> 0 pt
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-100 border border-red-600 text-red-950 text-xs font-bold">
+                        <XCircle className="h-4 w-4 text-red-700 stroke-[2.5]" />
+                        <span>0 pt</span>
+                        <span className="text-[11px] font-bold text-emerald-800">
+                          (Key: {MCQ_OPTION_LABELS[correctLetter] || correctLetter})
+                        </span>
                       </span>
                     )}
                   </div>
@@ -399,8 +405,8 @@ export default function TeacherAttemptDetailPage() {
             viewMode === 'detailed' ? 'block print:block' : 'hidden print:hidden'
           }`}
         >
-          {/* Multi-column grid just like OMR structure to save maximum space */}
-          <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-3">
+          {/* Single column when printing, 2 columns on desktop screen */}
+          <div className="grid grid-cols-1 md:grid-cols-2 print:!grid-cols-1 print-single-column gap-3">
             {questions.map((q, idx) => {
               const qNum = idx + 1;
               const ans = savedAnswers[q.id];
@@ -413,85 +419,55 @@ export default function TeacherAttemptDetailPage() {
               return (
                 <div
                   key={q.id}
-                  className={`break-inside-avoid print:break-inside-avoid rounded-xl border p-3 text-xs bg-white transition-colors ${
+                  className={`break-inside-avoid print:break-inside-avoid rounded-xl border-2 p-3.5 text-xs bg-white transition-colors ${
                     isCorrect
-                      ? 'border-emerald-200/90 bg-emerald-50/20'
+                      ? 'border-emerald-500 bg-emerald-50/20'
                       : isUnanswered
-                        ? 'border-slate-200 bg-slate-50/40 text-slate-600'
-                        : 'border-red-200/90 bg-red-50/20'
+                        ? 'border-slate-300 bg-slate-50/30 text-slate-700'
+                        : 'border-red-500 bg-red-50/20'
                   }`}
                 >
                   {/* Card Header: Q# Badge, Points, Result indicator */}
-                  <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-slate-100">
-                    <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 pb-2 border-b border-slate-200">
+                    <div className="flex items-center gap-2 min-w-0">
                       <span
-                        className={`flex h-5 w-5 items-center justify-center rounded text-[11px] font-bold shrink-0 ${
+                        className={`flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold shrink-0 border ${
                           isCorrect
-                            ? 'bg-emerald-600 text-white'
+                            ? 'border-emerald-700 bg-emerald-600 text-white'
                             : isUnanswered
-                              ? 'bg-slate-200 text-slate-600'
-                              : 'bg-red-500 text-white'
+                              ? 'border-slate-400 bg-slate-200 text-slate-700'
+                              : 'border-red-700 bg-red-600 text-white'
                         }`}
                       >
                         {qNum < 10 ? `0${qNum}` : qNum}
                       </span>
-                      <span className="font-bold text-slate-800 truncate">
+                      <span className="font-bold text-slate-900 text-sm">
                         Question {qNum}
                       </span>
-                      <span className="text-[10px] text-slate-400">
-                        &bull; {q.points || 1} pt
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] font-medium text-slate-600">
-                        Student:{' '}
-                        <strong
-                          className={
-                            isCorrect
-                              ? 'text-emerald-700'
-                              : isUnanswered
-                                ? 'text-slate-400'
-                                : 'text-red-600'
-                          }
-                        >
-                          {selectedNum ? `(${selectedNum})` : '—'}
-                        </strong>
-                      </span>
-                      <span className="text-[11px] font-medium text-slate-600">
-                        Key: <strong className="text-emerald-700">({correctNum})</strong>
-                      </span>
-                      {isCorrect ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                      ) : isUnanswered ? (
-                        <span className="text-[10px] text-slate-400 italic">Omit</span>
-                      ) : (
-                        <XCircle className="h-3.5 w-3.5 text-red-500" />
-                      )}
                     </div>
                   </div>
 
                   {/* Question Image if present */}
                   {q.image_url && (
-                    <div className="mb-2">
+                    <div className="mb-3 w-full">
                       <img
                         src={q.image_url}
-                        alt={`Q${qNum}`}
-                        className="max-h-24 w-auto object-contain rounded border border-slate-200"
-                        loading="lazy"
+                        alt={`Question ${qNum}`}
+                        className="w-full h-auto object-contain rounded-lg border border-slate-200 block"
+                        loading="eager"
                       />
                     </div>
                   )}
 
                   {/* Question Text if present and meaningful */}
                   {q.question_text && q.question_text !== `Question ${qNum}` && (
-                    <p className="text-xs font-medium text-slate-800 mb-2 leading-relaxed line-clamp-3">
+                    <p className="text-xs font-medium text-slate-800 mb-2 leading-relaxed">
                       {q.question_text}
                     </p>
                   )}
 
                   {/* OMR-like Choices in the SAME ROW / Compact Chips */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
                     {MCQ_OPTION_VALUES.slice(0, optionCount).map((opt, i) => {
                       const optKey = MCQ_OPTION_KEYS[i];
                       const optLabel = MCQ_OPTION_LABELS[opt];
@@ -506,23 +482,23 @@ export default function TeacherAttemptDetailPage() {
                         rawText === `Option ${optLabel}` ||
                         rawText === '';
 
-                      let chipStyle = 'border-slate-200 bg-slate-50/80 text-slate-600';
+                      let chipStyle = 'border-slate-300 bg-white text-slate-700';
 
                       if (isStudentChoice && isCorrectChoice) {
                         chipStyle =
-                          'border-emerald-600 bg-emerald-600 text-white font-bold ring-1 ring-emerald-300';
+                          'border-2 border-emerald-600 bg-emerald-100 text-emerald-950 font-bold shadow-xs';
                       } else if (isStudentChoice && !isCorrectChoice) {
                         chipStyle =
-                          'border-red-500 bg-red-500 text-white font-bold line-through';
+                          'border-2 border-red-600 bg-red-100 text-red-950 font-bold';
                       } else if (isCorrectChoice) {
                         chipStyle =
-                          'border-emerald-500 bg-emerald-50 text-emerald-800 font-bold ring-1 ring-emerald-500';
+                          'border-2 border-emerald-600 bg-emerald-50 text-emerald-900 font-bold';
                       }
 
                       return (
                         <div
                           key={opt}
-                          className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] transition ${chipStyle}`}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition ${chipStyle}`}
                         >
                           <span className="font-bold">{optLabel}.</span>
                           {optImg && (
@@ -533,17 +509,25 @@ export default function TeacherAttemptDetailPage() {
                             />
                           )}
                           {!isRedundant && (
-                            <span className="truncate max-w-[120px] font-normal">{rawText}</span>
+                            <span className="truncate max-w-[140px] font-normal">{rawText}</span>
                           )}
-                          {isCorrectChoice && (
-                            <CheckCircle2
-                              className={`h-3 w-3 ${
-                                isStudentChoice ? 'text-white' : 'text-emerald-600'
-                              } shrink-0`}
-                            />
+                          {isStudentChoice && isCorrectChoice && (
+                            <span className="inline-flex items-center gap-0.5 ml-1 text-[10px] font-black uppercase text-emerald-900 bg-emerald-200 px-1.5 py-0.5 rounded border border-emerald-400">
+                              <CheckCircle2 className="h-3 w-3 stroke-[2.5]" />
+                              <span>Correct</span>
+                            </span>
                           )}
                           {isStudentChoice && !isCorrectChoice && (
-                            <XCircle className="h-3 w-3 text-white shrink-0" />
+                            <span className="inline-flex items-center gap-0.5 ml-1 text-[10px] font-black uppercase text-red-900 bg-red-200 px-1.5 py-0.5 rounded border border-red-400">
+                              <XCircle className="h-3 w-3 stroke-[2.5]" />
+                              <span>Incorrect</span>
+                            </span>
+                          )}
+                          {!isStudentChoice && isCorrectChoice && (
+                            <span className="inline-flex items-center gap-0.5 ml-1 text-[10px] font-black uppercase text-emerald-900 bg-emerald-200 px-1.5 py-0.5 rounded border border-emerald-400">
+                              <CheckCircle2 className="h-3 w-3 stroke-[2.5]" />
+                              <span>Correct</span>
+                            </span>
                           )}
                         </div>
                       );
@@ -598,27 +582,66 @@ export default function TeacherAttemptDetailPage() {
         </div>
       )}
 
-      {/* ── Print Stylesheet for Minimum Space & 1-2 Page Fit ── */}
+      {/* ── Print Stylesheet for Single Column Multi-Page High-Contrast Print Output ── */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 6mm 6mm 6mm 6mm;
+            margin: 8mm 8mm 8mm 8mm;
           }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          html,
           body {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
             background: #ffffff !important;
             font-size: 11px !important;
             color: #000000 !important;
           }
+          /* Ensure all ancestors and layout wrappers allow multi-page flow and never clip */
+          html body,
+          #__next,
+          main,
+          div,
+          section,
+          article {
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+          }
+          /* Specifically prevent fixed viewport heights and scrolling containers from clipping */
+          .h-screen,
+          .overflow-hidden,
+          .overflow-y-auto {
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+          }
           nav,
+          aside,
           header,
           footer,
           .print\\:hidden {
             display: none !important;
           }
           .break-inside-avoid {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .print-single-column {
+            grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+          }
+          .print-brand-title {
+            font-size: 32px !important;
+            line-height: 1.15 !important;
+            font-weight: 900 !important;
+            letter-spacing: 0.04em !important;
           }
         }
       `}</style>

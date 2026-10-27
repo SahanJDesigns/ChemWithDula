@@ -58,14 +58,14 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         ];
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-muted/40">
+    <div className="flex h-screen flex-col overflow-hidden bg-muted/40 print:h-auto print:overflow-visible print:bg-white">
       <Navbar />
 
-      <div className="relative flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden print:h-auto print:overflow-visible print:block">
         {/* Backdrop — mobile only */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 top-16 z-30 bg-black/40 md:hidden"
+            className="fixed inset-0 top-16 z-30 bg-black/40 md:hidden print:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -77,6 +77,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
             transition-transform duration-300 ease-in-out
             fixed top-16 bottom-0 left-0 z-40 w-64
             md:static md:top-0 md:h-full md:w-64 md:translate-x-0 md:flex md:shrink-0
+            print:hidden
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
           `}
         >
@@ -138,7 +139,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         </aside>
 
         {/* Main content */}
-        <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+        <main className="flex min-w-0 flex-1 flex-col overflow-y-auto print:h-auto print:overflow-visible print:block">
           {children}
         </main>
       </div>

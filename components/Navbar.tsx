@@ -13,7 +13,7 @@ export default function Navbar() {
   const router = useRouter();
 
   return (
-    <nav className="sticky top-0 z-50 w-full shrink-0 border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
+    <nav className="sticky top-0 z-50 w-full shrink-0 border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 print:hidden">
       <div className="mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
