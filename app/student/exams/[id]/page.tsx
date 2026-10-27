@@ -36,7 +36,6 @@ import {
   Lock,
   Unlock,
   ShieldCheck,
-  ShieldAlert,
   Calendar,
   ArrowRight,
 } from 'lucide-react';
@@ -84,7 +83,6 @@ export default function StudentExamPage() {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [reviewMode, setReviewMode] = useState<'split' | 'cards'>('split');
-  const [violationSubmitted, setViolationSubmitted] = useState(false);
   const submitRef = useRef(false);
 
   useEffect(() => {
@@ -278,72 +276,6 @@ export default function StudentExamPage() {
     gradeAndSubmit();
   }, [gradeAndSubmit]);
 
-  const handleViolationAutoSubmit = useCallback(() => {
-    setViolationSubmitted(true);
-    gradeAndSubmit();
-  }, [gradeAndSubmit]);
-
-  const renderViolationModal = () => {
-    if (!violationSubmitted) return null;
-    return (
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
-      >
-        <div className="relative w-full max-w-md rounded-2xl bg-white p-6 sm:p-7 shadow-2xl border border-slate-200/90 text-center animate-in zoom-in-95 duration-200">
-          <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600 border border-red-200 shadow-xs">
-            <ShieldAlert className="h-7 w-7 text-red-600 animate-pulse" />
-          </div>
-
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-800 text-xs font-semibold mb-3 border border-red-200">
-            <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
-            <span>5 Security Violations Exceeded</span>
-          </div>
-
-          <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-1">
-            Exam Auto-Submitted
-          </h3>
-
-          <p className="text-xs font-semibold text-red-600 mb-4">
-            විභාග නීති උල්ලංඝනය කිරීම (Screenshots 5ක්) හේතුවෙන් ස්වයංක්‍රීයව ඉදිරිපත් කරන ලදී
-          </p>
-
-          {/* 5-Dots Progress Meter (All 5 violations triggered) */}
-          <div className="flex items-center justify-center gap-2 mb-4 bg-red-50/60 border border-red-200 rounded-xl py-2 px-3">
-            <span className="text-xs font-medium text-red-700 mr-1">Limit Reached:</span>
-            {[1, 2, 3, 4, 5].map((step) => (
-              <div
-                key={step}
-                className="h-2.5 w-7 rounded-full bg-red-500 shadow-xs shadow-red-500/50"
-              />
-            ))}
-            <span className="text-xs font-bold font-mono text-red-800 ml-1">5/5</span>
-          </div>
-
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-6">
-            You exceeded the maximum limit of 5 screenshot warnings. In accordance with examination regulations, your exam has been automatically terminated and submitted for evaluation.
-          </p>
-
-          <Button
-            onClick={() => setViolationSubmitted(false)}
-            disabled={submitting}
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold h-11 rounded-xl shadow-lg shadow-red-600/20 text-sm transition-all"
-          >
-            {submitting ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                Submitting & Evaluating Answers...
-              </span>
-            ) : (
-              'View Exam Results (ප්‍රතිඵලය බලන්න)'
-            )}
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
   if (phase === 'loading' || authLoading) {
     return (
       <DashboardLayout role="student">
@@ -479,17 +411,10 @@ export default function StudentExamPage() {
             <div className="rounded-2xl border border-slate-200 bg-white shadow-xs p-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                    {violationSubmitted ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-300">
-                        <AlertTriangle className="h-3 w-3 text-red-600" />
-                        Auto-submitted (5 Screenshot Violations)
-                      </span>
-                    ) : (
-                      <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Exam Completed
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Exam Completed
+                    </span>
                     {!isDeadlinePassed && (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
                         <Lock className="h-3 w-3" />
@@ -739,9 +664,6 @@ export default function StudentExamPage() {
             )}
           </div>
         </div>
-
-        {/* ── Auto-submitted due to rule violation popup ── */}
-        {renderViolationModal()}
       </DashboardLayout>
     );
   }
@@ -763,7 +685,6 @@ export default function StudentExamPage() {
           studentName={profile?.full_name || user?.email?.split('@')[0] || 'Student'}
           studentEmail={user?.email || ''}
           examTitle={exam.title}
-          onMaxViolationsReached={handleViolationAutoSubmit}
         >
           <div className="bg-slate-900 min-h-screen flex flex-col">
           {/* Top Exam Header */}
@@ -978,9 +899,6 @@ export default function StudentExamPage() {
               </div>
             </div>
           )}
-
-          {/* ── Auto-submitted due to rule violation popup ── */}
-          {renderViolationModal()}
         </div>
       </ExamSecurityGuard>
     );
@@ -993,7 +911,6 @@ export default function StudentExamPage() {
         studentName={profile?.full_name || user?.email?.split('@')[0] || 'Student'}
         studentEmail={user?.email || ''}
         examTitle={exam.title}
-        onMaxViolationsReached={handleViolationAutoSubmit}
       >
         <div className="bg-slate-50 min-h-screen">
         {/* Exam header bar */}
@@ -1179,9 +1096,6 @@ export default function StudentExamPage() {
             </div>
           </div>
         )}
-
-        {/* ── Auto-submitted due to rule violation popup ── */}
-        {renderViolationModal()}
       </div>
     </ExamSecurityGuard>
   );
