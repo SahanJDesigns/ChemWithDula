@@ -148,9 +148,13 @@ export default function StudentExamPage() {
         router.push('/');
         return;
       }
+      if (profile && profile.role === 'teacher') {
+        router.replace(`/teacher/exams/${examId}/try`);
+        return;
+      }
       loadData();
     }
-  }, [user, authLoading, loadData, router]);
+  }, [user, profile, authLoading, loadData, router, examId]);
 
   const startExam = async () => {
     if (!user || !exam || starting) return;
