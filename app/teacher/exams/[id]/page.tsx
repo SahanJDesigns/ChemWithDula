@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Plus, Trash2, Image as ImageIcon, X, CircleCheck as CheckCircle2, Eye, EyeOff, ChartBar as BarChart3, GripVertical, Upload, BookOpen, Pencil, Save, Clock, Calendar, FileText, ExternalLink, Rows, Layers } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Image as ImageIcon, X, CircleCheck as CheckCircle2, Eye, EyeOff, ChartBar as BarChart3, GripVertical, Upload, BookOpen, Pencil, Save, Clock, Calendar, FileText, ExternalLink, Rows, Layers, RotateCcw, Users } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 
 interface QuestionFormData {
@@ -79,22 +79,53 @@ export default function ManageExamPage() {
   const [metaSaving, setMetaSaving] = useState(false);
   const [metaError, setMetaError] = useState('');
   const [compactView, setCompactView] = useState(false);
+  const [attemptCount, setAttemptCount] = useState<number>(0);
+  const [recalculating, setRecalculating] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
-  const updateQuestionCorrectOption = async (questionId: string, newLetter: McqOptionLetter) => {
+  const updateQuestionCorrectOption = async (questionId: string, newLetter: McqOptionLetter, qNum?: number) => {
     setQuestions((prev) =>
       prev.map((q) => (q.id === questionId ? { ...q, correct_option: newLetter } : q))
     );
     try {
       await neon.from('questions').update({ correct_option: newLetter }).eq('id', questionId);
+      const letterLabel = MCQ_OPTION_LABELS[newLetter] || newLetter;
+      const numLabel = qNum ? `Q${qNum < 10 ? '0' + qNum : qNum}` : 'Question';
+      if (attemptCount > 0) {
+        setFeedbackMessage(`${numLabel} answer updated to (${letterLabel}). Marks automatically recalculated for ${attemptCount} student attempt(s).`);
+      } else {
+        setFeedbackMessage(`${numLabel} answer updated to (${letterLabel}).`);
+      }
     } catch (err) {
       console.error('Failed to update question answer:', err);
     }
   };
 
+  const handleRecalculateMarks = async () => {
+    if (recalculating) return;
+    setRecalculating(true);
+    try {
+      const res = await fetch(`/api/exams/${examId}/regrade`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setFeedbackMessage(data.message || 'Marks recalculated successfully for all students.');
+        await fetchData();
+      } else {
+        alert(data.error || 'Failed to recalculate marks.');
+      }
+    } catch (err) {
+      console.error('Recalculate error:', err);
+      alert('Failed to recalculate marks.');
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   const fetchData = useCallback(async () => {
-    const [examRes, questionsRes] = await Promise.all([
+    const [examRes, questionsRes, attemptsRes] = await Promise.all([
       neon.from('exams').select('*').eq('id', examId).maybeSingle(),
       neon.from('questions').select('*').eq('exam_id', examId).order('order_index'),
+      neon.from('exam_attempts').select('id').eq('exam_id', examId),
     ]);
     if (!examRes.data || examRes.data.teacher_id !== user?.id) {
       router.push('/teacher/dashboard');
@@ -102,6 +133,7 @@ export default function ManageExamPage() {
     }
     setExam(examRes.data);
     setQuestions(questionsRes.data || []);
+    setAttemptCount(attemptsRes.data?.length || 0);
     if (examRes.data?.pdf_url) {
       setCompactView(true);
     }
@@ -509,11 +541,33 @@ export default function ManageExamPage() {
                   <span>{questions.length} questions</span>
                   <span>&bull;</span>
                   <span>{totalPoints} total points</span>
+                  <span>&bull;</span>
+                  <Link
+                    href={`/teacher/results?exam=${exam.id}`}
+                    className="inline-flex items-center hover:text-primary transition-colors font-medium text-slate-600"
+                    title="View student results"
+                  >
+                    <Users className="inline h-3.5 w-3.5 mr-1 text-slate-400" />
+                    {attemptCount} student attempt{attemptCount !== 1 ? 's' : ''}
+                  </Link>
                   {exam.start_time && <><span>&bull;</span><span>Opens: {new Date(exam.start_time).toLocaleString()}</span></>}
                   {exam.end_time && <><span>&bull;</span><span>Closes: {new Date(exam.end_time).toLocaleString()}</span></>}
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex flex-wrap gap-2 shrink-0">
+                {attemptCount > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRecalculateMarks}
+                    disabled={recalculating}
+                    className="border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-medium"
+                    title="Force recalculate marks for all students who attempted this exam"
+                  >
+                    <RotateCcw className={`h-4 w-4 mr-1.5 ${recalculating ? 'animate-spin text-emerald-600' : 'text-emerald-600'}`} />
+                    {recalculating ? 'Recalculating...' : 'Recalculate Marks'}
+                  </Button>
+                )}
                 <Button size="sm" variant="outline" onClick={startEditMeta}>
                   <Pencil className="h-4 w-4 mr-1.5" />Edit Details
                 </Button>
@@ -530,6 +584,23 @@ export default function ManageExamPage() {
             </div>
           )}
         </div>
+
+        {/* ── Status Feedback Banner ── */}
+        {feedbackMessage && (
+          <div className="mb-6 rounded-xl border border-emerald-300 bg-emerald-50/90 p-3.5 flex items-center justify-between gap-3 text-sm text-emerald-950 shadow-xs animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+              <span className="font-semibold">{feedbackMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFeedbackMessage(null)}
+              className="text-emerald-700 hover:text-emerald-950 p-1"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* ── Add new question form (shown at top when no inline edit is active) ── */}
         {showAddForm && !editingId ? (
@@ -643,7 +714,7 @@ export default function ManageExamPage() {
                             <button
                               key={letter}
                               type="button"
-                              onClick={() => updateQuestionCorrectOption(q.id, letter)}
+                              onClick={() => updateQuestionCorrectOption(q.id, letter, qNum)}
                               title={`Set Q${qNum} correct answer to (${optNum})`}
                               className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-all border ${
                                 isCorrect

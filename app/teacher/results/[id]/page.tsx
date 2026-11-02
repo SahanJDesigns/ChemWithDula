@@ -25,6 +25,9 @@ import {
   Rows,
   Layers,
   ExternalLink,
+  RotateCcw,
+  Pencil,
+  X,
 } from 'lucide-react';
 
 type AttemptRow = ExamAttempt & {
@@ -44,6 +47,9 @@ export default function TeacherAttemptDetailPage() {
   const [savedAnswers, setSavedAnswers] = useState<Record<string, StudentAnswer>>({});
   const [viewMode, setViewMode] = useState<'compact' | 'detailed'>('compact');
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
+  const [updatingKeyQId, setUpdatingKeyQId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
@@ -83,6 +89,41 @@ export default function TeacherAttemptDetailPage() {
     setSavedAnswers(ansMap);
     setLoading(false);
   }, [attemptId, user?.id, router]);
+
+  const handleRecalculateMarks = async () => {
+    if (!attempt?.exam_id || recalculating) return;
+    setRecalculating(true);
+    try {
+      const res = await fetch(`/api/exams/${attempt.exam_id}/regrade`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setToastMessage(data.message || 'Marks recalculated successfully for all students.');
+        await load();
+      } else {
+        alert(data.error || 'Failed to recalculate marks.');
+      }
+    } catch (err) {
+      console.error('Recalculate error:', err);
+      alert('Failed to recalculate marks.');
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
+  const handleUpdateAnswerKey = async (questionId: string, newLetter: McqOptionLetter, qNum: number) => {
+    setUpdatingKeyQId(questionId);
+    try {
+      await neon.from('questions').update({ correct_option: newLetter }).eq('id', questionId);
+      const label = MCQ_OPTION_LABELS[newLetter] || newLetter;
+      setToastMessage(`Question ${qNum} answer key updated to (${label}). All student marks recalculated!`);
+      await load();
+    } catch (err) {
+      console.error('Failed to update answer key:', err);
+      alert('Failed to update answer key.');
+    } finally {
+      setUpdatingKeyQId(null);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading) {
@@ -155,6 +196,34 @@ export default function TeacherAttemptDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Recalculate Student Marks Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRecalculateMarks}
+              disabled={recalculating}
+              className="h-9 gap-1.5 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-semibold"
+              title="Recalculate marks for all students who attempted this exam"
+            >
+              <RotateCcw className={`h-4 w-4 ${recalculating ? 'animate-spin text-emerald-600' : 'text-emerald-600'}`} />
+              <span>{recalculating ? 'Recalculating...' : 'Recalculate Marks'}</span>
+            </Button>
+
+            {/* Edit Exam & Key Link */}
+            {attempt.exam_id && (
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="h-9 gap-1.5 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 font-medium"
+              >
+                <Link href={`/teacher/exams/${attempt.exam_id}`}>
+                  <Pencil className="h-4 w-4 text-slate-600" />
+                  <span>Edit Exam Key</span>
+                </Link>
+              </Button>
+            )}
+
             {/* View Paper PDF Button if available */}
             {attempt.exams?.pdf_url && (
               <Button
@@ -190,6 +259,23 @@ export default function TeacherAttemptDetailPage() {
             </Button>
           </div>
         </div>
+
+        {/* Toast / Notification Banner */}
+        {toastMessage && (
+          <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50/90 p-3.5 flex items-center justify-between gap-3 text-sm text-emerald-950 shadow-xs animate-in fade-in print:hidden">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+              <span className="font-semibold">{toastMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setToastMessage(null)}
+              className="text-emerald-700 hover:text-emerald-950 p-1"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* ── Printable Header (Shown in Print & on Screen) ── */}
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6 print:border-none print:shadow-none print:p-0 print:mb-3">
@@ -390,6 +476,32 @@ export default function TeacherAttemptDetailPage() {
                         </span>
                       </span>
                     )}
+
+                    {/* Teacher Quick Key Selector (Screen only, hidden in print) */}
+                    <div className="hidden sm:inline-flex print:!hidden items-center gap-1 ml-1 pl-1.5 border-l border-slate-200">
+                      <span className="text-[10px] text-slate-400 font-medium">Key:</span>
+                      <div className="flex items-center gap-0.5">
+                        {letters.map((letChoice, cIdx) => {
+                          const isCurKey = correctLetter === letChoice;
+                          return (
+                            <button
+                              key={letChoice}
+                              type="button"
+                              disabled={updatingKeyQId === q.id}
+                              onClick={() => handleUpdateAnswerKey(q.id, letChoice, qNum)}
+                              title={`Set Q${qNum} correct answer key to (${cIdx + 1})`}
+                              className={`h-5 w-5 rounded text-[10px] font-bold transition-all ${
+                                isCurKey
+                                  ? 'bg-emerald-600 text-white shadow-2xs ring-1 ring-emerald-300'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-800'
+                              } ${updatingKeyQId === q.id ? 'opacity-50 cursor-wait' : ''}`}
+                            >
+                              {cIdx + 1}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
@@ -444,6 +556,50 @@ export default function TeacherAttemptDetailPage() {
                       <span className="font-bold text-slate-900 text-sm">
                         Question {qNum}
                       </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {isCorrect ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 border border-emerald-600 text-emerald-950 text-xs font-bold">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                          <span>+{q.points || 1} pt</span>
+                        </span>
+                      ) : isUnanswered ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold">
+                          <span>Omitted (Key: {correctNum})</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-100 border border-red-600 text-red-950 text-xs font-bold">
+                          <XCircle className="h-3.5 w-3.5 text-red-700" />
+                          <span>0 pt (Key: {correctNum})</span>
+                        </span>
+                      )}
+
+                      {/* Teacher Quick Key Selector (Screen only, hidden in print) */}
+                      <div className="hidden sm:inline-flex print:!hidden items-center gap-1.5 ml-2 pl-2 border-l border-slate-200">
+                        <span className="text-[11px] font-semibold text-slate-500">Key:</span>
+                        <div className="flex items-center gap-1">
+                          {letters.map((letChoice, cIdx) => {
+                            const isCurKey = q.correct_option === letChoice;
+                            return (
+                              <button
+                                key={letChoice}
+                                type="button"
+                                disabled={updatingKeyQId === q.id}
+                                onClick={() => handleUpdateAnswerKey(q.id, letChoice, qNum)}
+                                title={`Set Q${qNum} correct key to (${cIdx + 1})`}
+                                className={`h-6 w-6 rounded-md text-xs font-bold transition-all border ${
+                                  isCurKey
+                                    ? 'bg-emerald-600 border-emerald-700 text-white shadow-xs ring-1 ring-emerald-300'
+                                    : 'bg-white border-slate-300 text-slate-700 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-800'
+                                } ${updatingKeyQId === q.id ? 'opacity-50 cursor-wait' : ''}`}
+                              >
+                                {cIdx + 1}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

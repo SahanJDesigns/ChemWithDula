@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BarChart3, Clock, Users } from 'lucide-react';
+import { BarChart3, Clock, Users, RotateCcw, CheckCircle2, X } from 'lucide-react';
 
 interface AttemptRow extends Omit<ExamAttempt, 'profiles'> {
   profiles: { full_name: string } | null;
@@ -31,6 +31,31 @@ export default function TeacherResultsPage() {
 
   const [studentFilter, setStudentFilter] = useState('');
   const [examFilter, setExamFilter] = useState<string>('all');
+  const [recalculating, setRecalculating] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleRecalculate = async () => {
+    if (recalculating || exams.length === 0) return;
+    setRecalculating(true);
+    try {
+      const targets = examFilter !== 'all' ? [examFilter] : exams.map((e) => e.id);
+      let totalAffected = 0;
+      for (const eId of targets) {
+        const res = await fetch(`/api/exams/${eId}/regrade`, { method: 'POST' });
+        const json = await res.json();
+        if (json.success && json.result?.affectedAttempts) {
+          totalAffected += json.result.affectedAttempts;
+        }
+      }
+      setToastMessage(`Marks successfully recalculated for ${totalAffected} student attempt(s).`);
+      await fetchData();
+    } catch (err) {
+      console.error('Recalculate error:', err);
+      alert('Failed to recalculate marks.');
+    } finally {
+      setRecalculating(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
@@ -98,10 +123,41 @@ export default function TeacherResultsPage() {
   return (
       <div className="min-h-[calc(100vh-4rem)]">
         <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-          <div className="mb-6">
-            <h1 className="text-xl font-bold text-foreground">Results</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Attempts · filter · details</p>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Results</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Attempts · filter · details</p>
+            </div>
+            {exams.length > 0 && attempts.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRecalculate}
+                disabled={recalculating}
+                className="gap-1.5 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-semibold self-start sm:self-auto"
+                title="Force recalculate marks for all student attempts"
+              >
+                <RotateCcw className={`h-4 w-4 ${recalculating ? 'animate-spin text-emerald-600' : 'text-emerald-600'}`} />
+                <span>{recalculating ? 'Recalculating...' : 'Recalculate Marks'}</span>
+              </Button>
+            )}
           </div>
+
+          {toastMessage && (
+            <div className="mb-6 rounded-xl border border-emerald-300 bg-emerald-50 p-3.5 flex items-center justify-between gap-3 text-sm text-emerald-950 shadow-xs animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                <span className="font-semibold">{toastMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setToastMessage(null)}
+                className="text-emerald-700 hover:text-emerald-950 p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
           {exams.length === 0 ? (
             <div className="rounded-xl border border-border bg-card p-12 text-center">

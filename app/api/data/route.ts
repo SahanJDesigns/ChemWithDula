@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth-server';
+import { recalculateExamAttempts } from '@/lib/exam-grading';
 
 const ALLOWED_TABLES = new Set([
   'exams',
@@ -147,6 +148,18 @@ export async function POST(req: Request) {
       `;
 
       const rows = await (sql as any)(query, params);
+
+      if (table === 'questions' && rows && rows.length > 0) {
+        const examId = rows[0]?.exam_id;
+        if (examId) {
+          try {
+            await recalculateExamAttempts(examId);
+          } catch (err) {
+            console.error('Failed to recalculate attempts on question insert:', err);
+          }
+        }
+      }
+
       return NextResponse.json({
         data: Array.isArray(data) ? rows : (rows[0] || null),
         error: null,
@@ -193,6 +206,18 @@ export async function POST(req: Request) {
       `;
 
       const rows = await (sql as any)(query, params);
+
+      if (table === 'questions' && rows && rows.length > 0) {
+        const examId = rows[0]?.exam_id;
+        if (examId) {
+          try {
+            await recalculateExamAttempts(examId);
+          } catch (err) {
+            console.error('Failed to recalculate attempts on question update:', err);
+          }
+        }
+      }
+
       return NextResponse.json({ data: rows, error: null });
     }
 
@@ -219,6 +244,18 @@ export async function POST(req: Request) {
 
       const query = `DELETE FROM ${table} WHERE ${whereClauses.join(' AND ')} RETURNING *;`;
       const rows = await (sql as any)(query, params);
+
+      if (table === 'questions' && rows && rows.length > 0) {
+        const examId = rows[0]?.exam_id;
+        if (examId) {
+          try {
+            await recalculateExamAttempts(examId);
+          } catch (err) {
+            console.error('Failed to recalculate attempts on question update:', err);
+          }
+        }
+      }
+
       return NextResponse.json({ data: rows, error: null });
     }
 
@@ -261,6 +298,18 @@ export async function POST(req: Request) {
       `;
 
       const rows = await (sql as any)(query, params);
+
+      if (table === 'questions' && rows && rows.length > 0) {
+        const examId = rows[0]?.exam_id;
+        if (examId) {
+          try {
+            await recalculateExamAttempts(examId);
+          } catch (err) {
+            console.error('Failed to recalculate attempts on question insert:', err);
+          }
+        }
+      }
+
       return NextResponse.json({
         data: Array.isArray(data) ? rows : (rows[0] || null),
         error: null,
