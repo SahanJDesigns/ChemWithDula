@@ -38,6 +38,8 @@ import {
   ShieldCheck,
   Calendar,
   ArrowRight,
+  RotateCcw,
+  Loader2,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import ExamSecurityGuard from '@/components/ExamSecurityGuard';
@@ -85,6 +87,66 @@ export default function StudentExamPage() {
   const [reviewMode, setReviewMode] = useState<'split' | 'cards'>('split');
   const submitRef = useRef(false);
 
+  const isTeacher = profile?.role === 'teacher';
+
+  // In-memory caching and background submission state
+  const questionsCacheRef = useRef<Question[]>([]);
+  const latestOptionRef = useRef<Record<string, McqOptionLetter>>({});
+  const activeSubmissionIdRef = useRef<Record<string, number>>({});
+
+  interface FailedSubmissionInfo {
+    questionId: string;
+    questionIndex: number;
+    questionNumber: number;
+    option: McqOptionLetter;
+    error?: string;
+  }
+  const [failedSubmission, setFailedSubmission] = useState<FailedSubmissionInfo | null>(null);
+  const [isRetryingFailed, setIsRetryingFailed] = useState(false);
+  const [syncingCount, setSyncingCount] = useState<number>(0);
+
+  // Preload all question images into browser memory immediately
+  const preloadQuestionImages = useCallback((qList: Question[]) => {
+    if (typeof window === 'undefined') return;
+    qList.forEach((q) => {
+      if (q.image_url) {
+        const img = new window.Image();
+        img.src = q.image_url;
+      }
+      MCQ_OPTION_VALUES.forEach((opt) => {
+        const optImg = getOptionImageUrl(q, opt);
+        if (optImg) {
+          const img = new window.Image();
+          img.src = optImg;
+        }
+      });
+    });
+  }, []);
+
+  // Fast restore from session cache on initial mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedQ = sessionStorage.getItem(`exam_questions_${examId}`);
+        if (cachedQ) {
+          const parsed = JSON.parse(cachedQ);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setQuestions(parsed);
+            questionsCacheRef.current = parsed;
+            preloadQuestionImages(parsed);
+          }
+        }
+        const cachedAns = sessionStorage.getItem(`exam_answers_${examId}`);
+        if (cachedAns) {
+          const parsed = JSON.parse(cachedAns);
+          if (parsed && typeof parsed === 'object') {
+            setAnswers((prev) => ({ ...parsed, ...prev }));
+          }
+        }
+      } catch (e) {}
+    }
+  }, [examId, preloadQuestionImages]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(new Date());
@@ -110,12 +172,21 @@ export default function StudentExamPage() {
     }
     setExam(examRes.data);
 
+    // Download ALL questions at once and keep in memory
     const questionsRes = await neon
       .from('questions')
       .select('*')
       .eq('exam_id', examId)
       .order('order_index');
-    setQuestions(questionsRes.data || []);
+    const qData: Question[] = questionsRes.data || [];
+    setQuestions(qData);
+    questionsCacheRef.current = qData;
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(`exam_questions_${examId}`, JSON.stringify(qData));
+      } catch (e) {}
+    }
+    preloadQuestionImages(qData);
 
     const att = attemptRes.data;
     if (!att) {
@@ -140,7 +211,7 @@ export default function StudentExamPage() {
     } else {
       setPhase('active');
     }
-  }, [examId, user, router]);
+  }, [examId, user, router, preloadQuestionImages]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -156,6 +227,10 @@ export default function StudentExamPage() {
     if (!user || !exam || starting) return;
     setStarting(true);
     try {
+      if (isTeacher) {
+        // Clear previous teacher trial attempt so teacher can test cleanly
+        await neon.from('exam_attempts').delete().eq('exam_id', exam.id).eq('student_id', user.id);
+      }
       const { data, error } = await neon
         .from('exam_attempts')
         .insert({
@@ -177,45 +252,212 @@ export default function StudentExamPage() {
     }
   };
 
-  const saveAnswer = useCallback(
-    async (questionId: string, option: McqOptionLetter) => {
-      if (!attempt) return;
-      setAnswers((prev) => ({ ...prev, [questionId]: option }));
-      try {
-        await neon.from('student_answers').upsert(
-          {
-            attempt_id: attempt.id,
-            question_id: questionId,
-            selected_option: option,
-          },
-          { onConflict: 'attempt_id,question_id' }
-        );
-      } catch (err) {
-        console.error('Failed to save answer:', err);
+  const resetTrialExam = async () => {
+    if (!user || !exam) return;
+    try {
+      if (attempt) {
+        await neon.from('exam_attempts').delete().eq('id', attempt.id);
+      }
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(`exam_answers_${examId}`);
+      }
+      setAttempt(null);
+      setAnswers({});
+      setSavedAnswers({});
+      setCurrentQ(0);
+      setPhase('preview');
+    } catch (err) {
+      console.error('Failed to reset trial exam:', err);
+    }
+  };
+
+  // Background answer submission with up to 3 automatic retries
+  const submitAnswerInBackground = useCallback(
+    async (
+      attemptId: string,
+      questionId: string,
+      option: McqOptionLetter,
+      qIndex: number
+    ) => {
+      const submissionId = Date.now();
+      activeSubmissionIdRef.current[questionId] = submissionId;
+      latestOptionRef.current[questionId] = option;
+
+      setSyncingCount((c) => c + 1);
+
+      const maxRetries = 3;
+      let attemptNum = 0;
+      let success = false;
+      let lastError: any = null;
+
+      while (attemptNum < maxRetries && !success) {
+        // If a newer answer was selected for this question, abort obsolete request
+        if (activeSubmissionIdRef.current[questionId] !== submissionId) {
+          setSyncingCount((c) => Math.max(0, c - 1));
+          return;
+        }
+
+        attemptNum++;
+
+        try {
+          const { error } = await neon.from('student_answers').upsert(
+            {
+              attempt_id: attemptId,
+              question_id: questionId,
+              selected_option: option,
+            },
+            { onConflict: 'attempt_id,question_id' }
+          );
+
+          if (error) throw new Error(error.message || 'Failed to save');
+
+          if (activeSubmissionIdRef.current[questionId] === submissionId) {
+            success = true;
+            // Clear any previous error notification for this question
+            setFailedSubmission((prev) => (prev?.questionId === questionId ? null : prev));
+          }
+        } catch (err: any) {
+          lastError = err;
+          console.warn(`[Background Submit] Question ${qIndex + 1} attempt ${attemptNum}/3 failed:`, err);
+          if (attemptNum < maxRetries) {
+            await new Promise((res) => setTimeout(res, attemptNum * 1000));
+          }
+        }
+      }
+
+      setSyncingCount((c) => Math.max(0, c - 1));
+
+      // If all 3 attempts failed and this is still the active choice:
+      if (!success && activeSubmissionIdRef.current[questionId] === submissionId) {
+        console.error(`[Background Submit] Question ${qIndex + 1} failed after ${maxRetries} attempts.`);
+
+        // 1. Immediately go to the submission failed question!
+        setCurrentQ(qIndex);
+
+        // 2. Show popup modal
+        setFailedSubmission({
+          questionId,
+          questionIndex: qIndex,
+          questionNumber: qIndex + 1,
+          option,
+          error: lastError?.message || 'Connection error',
+        });
       }
     },
-    [attempt]
+    []
+  );
+
+  const clearAnswerInBackground = useCallback(
+    async (attemptId: string, questionId: string, qIndex: number) => {
+      const submissionId = Date.now();
+      activeSubmissionIdRef.current[questionId] = submissionId;
+      delete latestOptionRef.current[questionId];
+
+      setSyncingCount((c) => c + 1);
+
+      const maxRetries = 3;
+      let attemptNum = 0;
+      let success = false;
+      let lastError: any = null;
+
+      while (attemptNum < maxRetries && !success) {
+        if (activeSubmissionIdRef.current[questionId] !== submissionId) {
+          setSyncingCount((c) => Math.max(0, c - 1));
+          return;
+        }
+
+        attemptNum++;
+        try {
+          const { error } = await neon
+            .from('student_answers')
+            .delete()
+            .eq('attempt_id', attemptId)
+            .eq('question_id', questionId);
+
+          if (error) throw new Error(error.message || 'Failed to clear');
+
+          if (activeSubmissionIdRef.current[questionId] === submissionId) {
+            success = true;
+            setFailedSubmission((prev) => (prev?.questionId === questionId ? null : prev));
+          }
+        } catch (err: any) {
+          lastError = err;
+          console.warn(`[Background Clear] Question ${qIndex + 1} attempt ${attemptNum}/3 failed:`, err);
+          if (attemptNum < maxRetries) {
+            await new Promise((res) => setTimeout(res, attemptNum * 1000));
+          }
+        }
+      }
+
+      setSyncingCount((c) => Math.max(0, c - 1));
+
+      if (!success && activeSubmissionIdRef.current[questionId] === submissionId) {
+        setCurrentQ(qIndex);
+        setFailedSubmission({
+          questionId,
+          questionIndex: qIndex,
+          questionNumber: qIndex + 1,
+          option: '' as McqOptionLetter,
+          error: lastError?.message || 'Connection error',
+        });
+      }
+    },
+    []
+  );
+
+  // Save answer: records in memory immediately, advances to next question without waiting, submits in background
+  const saveAnswer = useCallback(
+    (questionId: string, option: McqOptionLetter, specificIndex?: number) => {
+      if (!attempt) return;
+
+      // 1. Immediately store in memory
+      setAnswers((prev) => {
+        const next = { ...prev, [questionId]: option };
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem(`exam_answers_${examId}`, JSON.stringify(next));
+          } catch (e) {}
+        }
+        return next;
+      });
+
+      // 2. Do not wait for server response — advance to next question immediately
+      const qIndex =
+        typeof specificIndex === 'number'
+          ? specificIndex
+          : questions.findIndex((q) => q.id === questionId);
+
+      if (qIndex >= 0 && qIndex < questions.length - 1) {
+        setTimeout(() => {
+          setCurrentQ((prev) => (prev === qIndex ? qIndex + 1 : prev));
+        }, 100);
+      }
+
+      // 3. Handle submission in background with up to 3 retries
+      submitAnswerInBackground(attempt.id, questionId, option, qIndex >= 0 ? qIndex : 0);
+    },
+    [attempt, examId, questions, submitAnswerInBackground]
   );
 
   const clearAnswer = useCallback(
-    async (questionId: string) => {
+    (questionId: string) => {
       if (!attempt) return;
+
       setAnswers((prev) => {
         const next = { ...prev };
         delete next[questionId];
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem(`exam_answers_${examId}`, JSON.stringify(next));
+          } catch (e) {}
+        }
         return next;
       });
-      try {
-        await neon
-          .from('student_answers')
-          .delete()
-          .eq('attempt_id', attempt.id)
-          .eq('question_id', questionId);
-      } catch (err) {
-        console.error('Failed to clear answer:', err);
-      }
+
+      const qIndex = questions.findIndex((q) => q.id === questionId);
+      clearAnswerInBackground(attempt.id, questionId, qIndex >= 0 ? qIndex : 0);
     },
-    [attempt]
+    [attempt, examId, questions, clearAnswerInBackground]
   );
 
   const gradeAndSubmit = useCallback(async () => {
@@ -278,7 +520,7 @@ export default function StudentExamPage() {
 
   if (phase === 'loading' || authLoading) {
     return (
-      <DashboardLayout role="student">
+      <DashboardLayout role={isTeacher ? 'teacher' : 'student'}>
         <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
           <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </div>
@@ -297,7 +539,20 @@ export default function StudentExamPage() {
     const isPdfExam = Boolean(exam.pdf_url);
 
     return (
-      <DashboardLayout role="student">
+      <DashboardLayout role={isTeacher ? 'teacher' : 'student'}>
+        {isTeacher && (
+          <div className="bg-amber-500/10 border-b border-amber-300 text-amber-950 px-4 py-2 text-xs font-medium flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
+            <span className="font-semibold flex items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px] uppercase">
+                Teacher Trial
+              </span>
+              Testing exam in live student simulation. Answers will not affect student analytics.
+            </span>
+            <Link href={`/teacher/exams/${exam.id}`} className="underline font-semibold hover:text-amber-700">
+              Back to Exam Editor
+            </Link>
+          </div>
+        )}
         <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center p-4">
           <div className="w-full max-w-lg">
             <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-xs text-center">
@@ -345,18 +600,18 @@ export default function StudentExamPage() {
                     <p className="font-semibold mb-1">උපදෙස් / Instructions:</p>
                     <ul className="space-y-1 text-xs text-amber-900/90">
                       <li>&bull; මෙම ප්‍රශ්න පත්‍රයේ ප්‍රශ්න {questions.length}ක් ඇත.</li>
-                      <li>&bull; ප්‍රශ්න කියවා දකුණු පස ඇති අංකිත කව (dots) ක්ලික් කිරීමෙන් පිළිතුරු සලකුණු කරන්න.</li>
-                      <li>&bull; සියලුම ප්‍රශ්නවලට පිළිතුරු සැපයීම අනිවාර්ය වේ.</li>
+                      <li>&bull; ප්‍රශ්න කියවා පිළිතුරු සලකුණු කළ වහාම ඊළඟ ප්‍රශ්නයට යොමුවේ.</li>
+                      <li>&bull; පිළිතුරු ස්වයංක්‍රීයව පසුබිමින් (background) සුරැකේ.</li>
                     </ul>
                   </div>
                 </div>
               </div>
 
-              {isBeforeStart ? (
+              {(isBeforeStart && !isTeacher) ? (
                 <p className="text-sm text-slate-500">
                   This exam opens on {new Date(exam.start_time!).toLocaleString()}
                 </p>
-              ) : isAfterEnd ? (
+              ) : (isAfterEnd && !isTeacher) ? (
                 <p className="text-sm text-red-500">This exam has closed.</p>
               ) : (
                 <Button
@@ -369,7 +624,7 @@ export default function StudentExamPage() {
                   ) : (
                     <>
                       <PlayCircle className="h-5 w-5 mr-2" />
-                      Start Exam
+                      {isTeacher ? 'Start Exam (Teacher Trial)' : 'Start Exam'}
                     </>
                   )}
                 </Button>
@@ -400,11 +655,43 @@ export default function StudentExamPage() {
     const optionCount = exam.option_count || 5;
 
     const deadlineDate = exam.end_time ? new Date(exam.end_time) : null;
-    const isDeadlinePassed = !deadlineDate || now.getTime() >= deadlineDate.getTime();
+    const isDeadlinePassed = isTeacher || !deadlineDate || now.getTime() >= deadlineDate.getTime();
     const countdown = deadlineDate ? formatDeadlineCountdown(deadlineDate, now) : null;
 
     return (
-      <DashboardLayout role="student">
+      <DashboardLayout role={isTeacher ? 'teacher' : 'student'}>
+        {isTeacher && (
+          <div className="bg-amber-500/10 border-b border-amber-300 text-amber-950 px-4 py-2 text-xs font-medium flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
+            <span className="font-semibold flex items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px] uppercase">
+                Teacher Trial Results
+              </span>
+              Immediate solutions unlocked.
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={resetTrialExam}
+                className="h-7 text-xs border-amber-300 bg-white hover:bg-amber-50 text-amber-900"
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Try Again
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                asChild
+                className="h-7 text-xs border-amber-300 bg-white hover:bg-amber-50 text-amber-900"
+              >
+                <Link href={`/teacher/exams/${exam.id}`}>
+                  <ArrowLeft className="h-3 w-3 mr-1" />
+                  Back to Editor
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="min-h-[calc(100vh-4rem)] bg-slate-50 py-6 px-4 sm:px-6">
           <div className="mx-auto max-w-7xl space-y-6">
             {/* Score Summary Card */}
@@ -677,12 +964,70 @@ export default function StudentExamPage() {
     const optionCount = exam.option_count || 5;
     const question = questions[currentQ];
 
+    const failedSubmissionModal = failedSubmission && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-red-200">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-red-600 mx-auto mb-4">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 text-center mb-1">
+            Submission Failed
+          </h3>
+          <p className="text-sm text-slate-600 text-center mb-4 leading-relaxed">
+            Your answer for <span className="font-bold text-red-600">Question {failedSubmission.questionNumber}</span> could not be saved to the server after 3 attempts.
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 mb-6 space-y-1">
+            <p className="font-semibold text-amber-950 flex items-center gap-1.5">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Navigated to Question {failedSubmission.questionNumber}
+            </p>
+            <p className="text-amber-800">
+              Your selected answer is still stored in memory on your device. Please verify your internet connection and retry saving.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setFailedSubmission(null)}
+            >
+              Dismiss
+            </Button>
+            <Button
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold"
+              disabled={isRetryingFailed}
+              onClick={async () => {
+                if (!attempt) return;
+                setIsRetryingFailed(true);
+                const failed = failedSubmission;
+                setCurrentQ(failed.questionIndex);
+                await submitAnswerInBackground(
+                  attempt.id,
+                  failed.questionId,
+                  failed.option,
+                  failed.questionIndex
+                );
+                setIsRetryingFailed(false);
+              }}
+            >
+              {isRetryingFailed ? (
+                <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin mr-1.5" />
+              ) : (
+                <RotateCcw className="h-4 w-4 mr-1.5" />
+              )}
+              Retry Submission
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+
     /* ── SCENARIO A: FULL PDF EXAM PAPER + RIGHT BUBBLE SHEET ── */
     if (isPdfExam) {
       return (
         <ExamSecurityGuard
           isActive={true}
-          studentName={profile?.full_name || user?.email?.split('@')[0] || 'Student'}
+          studentName={profile?.full_name || user?.email?.split('@')[0] || (isTeacher ? 'Teacher' : 'Student')}
           studentEmail={user?.email || ''}
           examTitle={exam.title}
         >
@@ -698,6 +1043,25 @@ export default function StudentExamPage() {
                 <span className="hidden sm:inline-block text-xs bg-slate-800 text-emerald-300 px-2 py-0.5 rounded-full font-medium border border-slate-700">
                   {answeredCount}/{questions.length} answered
                 </span>
+                {syncingCount > 0 ? (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950/60 border border-amber-800/80 px-2.5 py-0.5 rounded-full font-medium">
+                    <Loader2 className="h-3 w-3 animate-spin text-amber-400" />
+                    Saving...
+                  </span>
+                ) : failedSubmission ? (
+                  <button
+                    onClick={() => setCurrentQ(failedSubmission.questionIndex)}
+                    className="hidden sm:inline-flex items-center gap-1 text-xs text-red-300 bg-red-950/70 border border-red-800 px-2.5 py-0.5 rounded-full hover:bg-red-900 transition-colors"
+                  >
+                    <AlertTriangle className="h-3 w-3 text-red-400" />
+                    Failed Q{failedSubmission.questionNumber}
+                  </button>
+                ) : (
+                  <span className="hidden sm:inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-950/50 border border-emerald-800/60 px-2.5 py-0.5 rounded-full font-medium">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                    Saved
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-2.5 shrink-0">
@@ -771,6 +1135,8 @@ export default function StudentExamPage() {
                   questions={questions}
                   answers={answers}
                   optionCount={optionCount}
+                  activeQuestionIndex={currentQ}
+                  onQuestionClick={(idx) => setCurrentQ(idx)}
                   onSelectAnswer={saveAnswer}
                   onClearAnswer={clearAnswer}
                 />
@@ -835,6 +1201,8 @@ export default function StudentExamPage() {
                     questions={questions}
                     answers={answers}
                     optionCount={optionCount}
+                    activeQuestionIndex={currentQ}
+                    onQuestionClick={(idx) => setCurrentQ(idx)}
                     onSelectAnswer={saveAnswer}
                     onClearAnswer={clearAnswer}
                   />
@@ -899,6 +1267,9 @@ export default function StudentExamPage() {
               </div>
             </div>
           )}
+
+          {/* Failed submission popup */}
+          {failedSubmissionModal}
         </div>
       </ExamSecurityGuard>
     );
@@ -908,7 +1279,7 @@ export default function StudentExamPage() {
     return (
       <ExamSecurityGuard
         isActive={true}
-        studentName={profile?.full_name || user?.email?.split('@')[0] || 'Student'}
+        studentName={profile?.full_name || user?.email?.split('@')[0] || (isTeacher ? 'Teacher' : 'Student')}
         studentEmail={user?.email || ''}
         examTitle={exam.title}
       >
@@ -921,6 +1292,25 @@ export default function StudentExamPage() {
               <span className="text-xs text-slate-400 shrink-0">
                 {answeredCount}/{questions.length} answered
               </span>
+              {syncingCount > 0 ? (
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                  <Loader2 className="h-3 w-3 animate-spin text-amber-600" />
+                  Saving...
+                </span>
+              ) : failedSubmission ? (
+                <button
+                  onClick={() => setCurrentQ(failedSubmission.questionIndex)}
+                  className="hidden sm:inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-0.5 rounded-full font-semibold transition-colors"
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  Failed Q{failedSubmission.questionNumber}
+                </button>
+              ) : (
+                <span className="hidden sm:inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Saved
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <ExamTimer
@@ -981,7 +1371,7 @@ export default function StudentExamPage() {
                       return (
                         <button
                           key={opt}
-                          onClick={() => saveAnswer(question.id, opt)}
+                          onClick={() => saveAnswer(question.id, opt, currentQ)}
                           className={`w-full flex items-center gap-3.5 rounded-xl border-2 px-4 py-3.5 text-left text-sm transition-all ${
                             isSelected
                               ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary/20 shadow-xs'
@@ -1096,6 +1486,9 @@ export default function StudentExamPage() {
             </div>
           </div>
         )}
+
+        {/* Failed submission popup */}
+        {failedSubmissionModal}
       </div>
     </ExamSecurityGuard>
   );

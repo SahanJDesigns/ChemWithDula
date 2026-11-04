@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Plus, Trash2, Image as ImageIcon, X, CircleCheck as CheckCircle2, Eye, EyeOff, ChartBar as BarChart3, GripVertical, Upload, BookOpen, Pencil, Save, Clock, Calendar, FileText, ExternalLink, Rows, Layers, RotateCcw, Users } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Image as ImageIcon, X, CircleCheck as CheckCircle2, CirclePlay as PlayCircle, Eye, EyeOff, ChartBar as BarChart3, GripVertical, Upload, BookOpen, Pencil, Save, Clock, Calendar, FileText, ExternalLink, Rows, Layers, RotateCcw, Users } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 
 interface QuestionFormData {
@@ -555,6 +555,18 @@ export default function ManageExamPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  asChild
+                  className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary font-medium shadow-2xs"
+                  title="Try this exam as a student"
+                >
+                  <Link href={`/student/exams/${exam.id}`}>
+                    <PlayCircle className="h-4 w-4 mr-1.5 text-primary" />
+                    Try Exam
+                  </Link>
+                </Button>
                 {attemptCount > 0 && (
                   <Button
                     size="sm"

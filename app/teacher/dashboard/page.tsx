@@ -7,7 +7,7 @@ import { neonClient as neon } from '@/lib/neon';
 import { useAuth } from '@/contexts/AuthContext';
 import { Exam } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Plus, BookOpen, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Plus, BookOpen, Eye, EyeOff, Trash2, CirclePlay as PlayCircle } from 'lucide-react';
 
 export default function TeacherDashboard() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -134,6 +134,18 @@ export default function TeacherDashboard() {
                         <div className="flex items-center justify-end gap-1.5">
                           <Button variant="ghost" size="sm" asChild className="h-8 px-2.5 text-slate-500">
                             <Link href={`/teacher/exams/${exam.id}`}>Manage</Link>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="h-8 px-2.5 text-xs text-primary border-primary/30 hover:bg-primary/5 hover:text-primary font-medium"
+                            title="Try this exam as a student"
+                          >
+                            <Link href={`/student/exams/${exam.id}`}>
+                              <PlayCircle className="h-3.5 w-3.5 mr-1" />
+                              Try Exam
+                            </Link>
                           </Button>
                           <Button
                             variant="ghost"
